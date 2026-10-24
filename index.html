@@ -14,7 +14,6 @@
   --text:#f8fafc;
   --muted:#a9b5c7;
   --accent:#5ea3ff;
-  --warn:#d8a800;
 }
 
 *{
@@ -139,10 +138,6 @@ tbody th{
   font-size:11px;
   color:var(--muted);
   margin-top:2px;
-}
-
-.warn{
-  color:var(--warn);
 }
 
 .empty{
@@ -488,7 +483,7 @@ const CONFIG = {
       "8+"
     ],
     note:
-      "NFL: Weeks 1–10 sample. ⚠ = fewer than 10 games."
+      "NFL: Weeks 1–10 sample."
   },
 
   cfb:{
@@ -500,7 +495,7 @@ const CONFIG = {
       "15+"
     ],
     note:
-      "College: 2023–2025 AP Top-25 favorite sample. ⚠ = fewer than 10 games."
+      "College: 2023–2025 AP Top-25 favorite sample."
   }
 
 };
@@ -711,11 +706,6 @@ function renderTable(){
               td.innerHTML =
                 '<div class="cell">' +
                 fmt(value) +
-                (
-                  n < 10
-                    ? ' <span class="warn">⚠</span>'
-                    : ''
-                ) +
                 '</div>' +
                 '<div class="n">n=' +
                 n +
