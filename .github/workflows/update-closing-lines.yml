@@ -1,1 +1,224 @@
+name: Update NFL Closing Lines
 
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 13-23 * * 0"
+    - cron: "*/5 22-23 * * 1,4"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Refresh frozen NFL closing lines
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          ESPN = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+          JINA = "https://r.jina.ai/https://theoddsgap.com/odds/nfl/"
+          OUT = Path("closing-lines.json")
+
+          def fetch_text(url):
+              req = urllib.request.Request(
+                  url,
+                  headers={"User-Agent": "Mozilla/5.0 FootballFairPriceLookup/1.0"},
+              )
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return r.read().decode("utf-8", errors="replace")
+
+          def fetch_json(url):
+              return json.loads(fetch_text(url))
+
+          def slugify(name):
+              return (
+                  name.lower()
+                  .replace("&", "and")
+                  .replace("'", "")
+                  .replace(".", "")
+                  .replace(" ", "-")
+                  .replace("--", "-")
+                  .strip("-")
+              )
+
+          def eastern_date(iso_date):
+              dt = datetime.fromisoformat(iso_date.replace("Z", "+00:00"))
+              return dt.astimezone(
+                  ZoneInfo("America/New_York")
+              ).strftime("%Y-%m-%d")
+
+          def parse_close(text):
+              text = text.replace("−", "-")
+
+              section_match = re.search(
+                  r"Closing Moneyline[\s\S]*?(?=\n#{1,4}\s|\Z)",
+                  text,
+                  flags=re.I,
+              )
+
+              section = section_match.group(0) if section_match else text
+
+              patterns = [
+                  r"\|\s*Novig\s*\|\s*([+-]\d+)\s*\|\s*([+-]\d+)",
+                  r"Novig\s*\|\s*([+-]\d+)\s*\|\s*([+-]\d+)",
+                  r"Novig\s+([+-]\d+)\s+([+-]\d+)",
+              ]
+
+              for pattern in patterns:
+                  m = re.search(pattern, section, flags=re.I)
+                  if m:
+                      return int(m.group(1)), int(m.group(2))
+
+              return None
+
+          if OUT.exists():
+              try:
+                  data = json.loads(OUT.read_text())
+              except Exception:
+                  data = {"updated_at": None, "games": {}}
+          else:
+              data = {"updated_at": None, "games": {}}
+
+          games = data.setdefault("games", {})
+
+          now_et = datetime.now(
+              ZoneInfo("America/New_York")
+          )
+
+          dates = now_et.strftime("%Y%m%d")
+
+          scoreboard = fetch_json(
+              f"{ESPN}?limit=100&dates={dates}"
+          )
+
+          added = 0
+
+          for event in scoreboard.get("events", []):
+              comps = event.get("competitions") or []
+
+              if not comps:
+                  continue
+
+              comp = comps[0]
+
+              state = (
+                  comp.get("status", {})
+                  .get("type", {})
+                  .get("state")
+              )
+
+              if state not in ("in", "post"):
+                  continue
+
+              game_id = str(event.get("id"))
+
+              existing = games.get(game_id, {})
+
+              if (
+                  existing.get("away_ml") is not None
+                  and existing.get("home_ml") is not None
+              ):
+                  continue
+
+              competitors = comp.get("competitors", [])
+
+              away = next(
+                  (x for x in competitors if x.get("homeAway") == "away"),
+                  None,
+              )
+
+              home = next(
+                  (x for x in competitors if x.get("homeAway") == "home"),
+                  None,
+              )
+
+              if not away or not home:
+                  continue
+
+              away_name = away.get("team", {}).get("displayName")
+              home_name = home.get("team", {}).get("displayName")
+
+              if not away_name or not home_name:
+                  continue
+
+              game_date = eastern_date(event["date"])
+
+              source_url = (
+                  f"{JINA}"
+                  f"{slugify(away_name)}-vs-{slugify(home_name)}/"
+                  f"{game_date}"
+              )
+
+              print("Checking:", away_name, "at", home_name)
+
+              try:
+                  page = fetch_text(source_url)
+                  close = parse_close(page)
+
+              except Exception as exc:
+                  print("Fetch failed:", exc)
+                  continue
+
+              if close is None:
+                  print("Closing line not found yet.")
+                  continue
+
+              away_ml, home_ml = close
+
+              games[game_id] = {
+                  "event_id": game_id,
+                  "date": game_date,
+                  "away": away_name,
+                  "home": home_name,
+                  "away_ml": away_ml,
+                  "home_ml": home_ml,
+                  "source": "The Odds Gap Novig closing moneyline",
+              }
+
+              added += 1
+
+              print("Saved:", away_ml, home_ml)
+
+          if added:
+              data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+          OUT.write_text(
+              json.dumps(data, indent=2, sort_keys=True) + "\n"
+          )
+
+          print("New closing lines:", added)
+          print("Total stored games:", len(games))
+          PY
+
+      - name: Commit updated JSON
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- closing-lines.json)" ]; then
+            echo "No closing-line changes."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add closing-lines.json
+          git commit -m "Update NFL closing lines"
+          git push
