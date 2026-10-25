@@ -2,21 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1, viewport-fit=cover"
->
-
-<meta
-  name="theme-color"
-  content="#0b1220"
->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
 
 <title>Football Fair-Price Lookup</title>
 
 <style>
-
 :root{
   --bg:#0b1220;
   --panel:#111827;
@@ -25,6 +16,7 @@
   --text:#f8fafc;
   --muted:#9fb0c5;
   --accent:#5ea3ff;
+  --price:#facc15;
   --pass:#94a3b8;
   --buy:#f4c84a;
   --strong:#4ade80;
@@ -34,24 +26,15 @@
   box-sizing:border-box;
 }
 
-html,
-body{
+html,body{
   margin:0;
   background:var(--bg);
   color:var(--text);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Arial,
-    sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
 }
 
 body{
-  padding:
-    16px
-    12px
-    32px;
+  padding:16px 12px 32px;
 }
 
 .wrap{
@@ -82,237 +65,120 @@ h1{
 }
 
 .sports{
-  grid-template-columns:
-    1fr
-    1fr;
+  grid-template-columns:1fr 1fr;
 }
 
 .probs{
-  grid-template-columns:
-    repeat(2,1fr);
+  grid-template-columns:repeat(2,1fr);
 }
 
 button{
   appearance:none;
-  border:
-    1px
-    solid
-    var(--border);
-
-  background:
-    var(--panel);
-
-  color:
-    var(--text);
-
-  border-radius:
-    11px;
-
-  padding:
-    12px
-    7px;
-
-  min-height:
-    46px;
-
-  font-size:
-    14px;
-
-  font-weight:
-    800;
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  border-radius:11px;
+  padding:12px 7px;
+  min-height:46px;
+  font-size:14px;
+  font-weight:800;
 }
 
 button.active{
-  background:
-    var(--panel2);
-
-  outline:
-    2px
-    solid
-    var(--accent);
+  background:var(--panel2);
+  outline:2px solid var(--accent);
 }
 
 .card{
   margin-top:16px;
-
-  padding:
-    17px
-    16px;
-
-  border:
-    1px
-    solid
-    var(--border);
-
-  background:
-    var(--panel);
-
-  border-radius:
-    14px;
+  padding:17px 16px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:14px;
 }
 
 .controlTitle{
   text-align:center;
-
-  color:
-    var(--muted);
-
-  font-size:
-    13px;
-
-  font-weight:
-    700;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
 }
 
 .bigValue{
   text-align:center;
-
-  font-size:
-    38px;
-
-  font-weight:
-    950;
-
-  margin:
-    5px
-    0
-    10px;
+  font-size:38px;
+  font-weight:950;
+  margin:5px 0 10px;
 }
 
 input[type="range"]{
   width:100%;
-  margin:
-    10px
-    0
-    4px;
+  margin:10px 0 4px;
 }
 
 .rangeMarks{
   display:flex;
   justify-content:space-between;
+  color:var(--muted);
+  font-size:11px;
+}
 
-  color:
-    var(--muted);
+/* MAIN BREAK-EVEN DISPLAY */
 
-  font-size:
-    11px;
+.breakEvenBox{
+  margin-top:18px;
+  padding:20px 12px;
+  background:var(--panel);
+  border:2px solid var(--price);
+  border-radius:15px;
+  text-align:center;
+}
+
+.breakEvenLabel{
+  color:var(--text);
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.6px;
+}
+
+.breakEvenPrice{
+  color:var(--price);
+  font-size:64px;
+  line-height:1;
+  font-weight:950;
+  margin-top:9px;
+}
+
+.winProb{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:13px;
 }
 
 .askInput{
   width:100%;
-
-  border:
-    1px
-    solid
-    var(--border);
-
-  background:
-    #0f172a;
-
-  color:
-    var(--text);
-
-  border-radius:
-    11px;
-
-  padding:
-    13px
-    14px;
-
-  font-size:
-    18px;
-
-  font-weight:
-    800;
-
+  border:1px solid var(--border);
+  background:#0f172a;
+  color:var(--text);
+  border-radius:11px;
+  padding:13px 14px;
+  font-size:18px;
+  font-weight:800;
   outline:none;
 }
 
 .askInput:focus{
-  border-color:
-    var(--accent);
-}
-
-.result{
-  margin-top:18px;
-
-  padding:
-    22px
-    14px;
-
-  background:
-    var(--panel);
-
-  border:
-    1px
-    solid
-    var(--border);
-
-  border-radius:
-    14px;
-
-  text-align:center;
-}
-
-.resultLabel{
-  color:
-    var(--muted);
-
-  font-size:
-    13px;
-
-  font-weight:
-    800;
-
-  text-transform:
-    uppercase;
-
-  letter-spacing:
-    .5px;
-}
-
-.price{
-  font-size:
-    58px;
-
-  line-height:
-    1.05;
-
-  font-weight:
-    950;
-
-  margin-top:
-    8px;
-}
-
-.winProb{
-  margin-top:
-    5px;
-
-  color:
-    var(--muted);
-
-  font-size:
-    13px;
+  border-color:var(--accent);
 }
 
 .tradeBox{
   display:none;
-
-  margin-top:
-    15px;
-
-  padding:
-    13px;
-
-  border-radius:
-    11px;
-
-  font-size:
-    20px;
-
-  font-weight:
-    950;
+  margin-top:14px;
+  padding:14px;
+  border-radius:11px;
+  text-align:center;
+  font-size:21px;
+  font-weight:950;
 }
 
 .tradeBox.pass{
@@ -334,41 +200,24 @@ input[type="range"]{
 }
 
 .discount{
-  margin-top:
-    6px;
-
-  font-size:
-    12px;
-
-  font-weight:
-    700;
+  margin-top:6px;
+  font-size:12px;
+  font-weight:700;
 }
 
 .footer{
-  margin-top:
-    12px;
-
-  color:
-    var(--muted);
-
-  font-size:
-    10px;
-
-  line-height:
-    1.4;
-
+  margin-top:14px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.4;
   text-align:center;
 }
 
 @media(min-width:560px){
-
   .probs{
-    grid-template-columns:
-      repeat(4,1fr);
+    grid-template-columns:repeat(4,1fr);
   }
-
 }
-
 </style>
 </head>
 
@@ -376,37 +225,27 @@ input[type="range"]{
 
 <div class="wrap">
 
-<h1>
-Football Fair-Price Lookup
-</h1>
+<h1>Football Fair-Price Lookup</h1>
 
 <div class="sub">
-Theoretical break-even YES price.
-Flat 1.5¢ fee per contract already subtracted.
+NFL + College Top 25 • Flat 1.5¢ fee already included
 </div>
 
 
-<div class="label">
-Sport
-</div>
+<div class="label">Sport</div>
 
-<div
-  class="grid sports"
-  id="sportButtons"
->
+<div class="grid sports" id="sportButtons">
 
 <button
   type="button"
   data-sport="nfl"
-  class="active"
->
+  class="active">
 NFL
 </button>
 
 <button
   type="button"
-  data-sport="cfb"
->
+  data-sport="cfb">
 College Top 25
 </button>
 
@@ -419,8 +258,7 @@ Pregame favorite probability
 
 <div
   class="grid probs"
-  id="probButtons"
->
+  id="probButtons">
 </div>
 
 
@@ -432,8 +270,7 @@ Game time remaining
 
 <div
   class="bigValue"
-  id="timeValue"
->
+  id="timeValue">
 30 min
 </div>
 
@@ -443,8 +280,7 @@ Game time remaining
   min="0"
   max="60"
   step="1"
-  value="30"
->
+  value="30">
 
 <div class="rangeMarks">
 <span>0</span>
@@ -465,8 +301,7 @@ Favorite score differential
 
 <div
   class="bigValue"
-  id="scoreValue"
->
+  id="scoreValue">
 0
 </div>
 
@@ -476,14 +311,35 @@ Favorite score differential
   min="-7"
   max="15"
   step="1"
-  value="0"
->
+  value="0">
 
 <div class="rangeMarks">
 <span>-7</span>
 <span>0</span>
 <span>+7</span>
 <span>+15</span>
+</div>
+
+</div>
+
+
+<!-- LARGE YES BREAK-EVEN DISPLAY -->
+
+<div class="breakEvenBox">
+
+<div class="breakEvenLabel">
+YES BREAK-EVEN PRICE
+</div>
+
+<div
+  class="breakEvenPrice"
+  id="breakEven">
+—
+</div>
+
+<div
+  class="winProb"
+  id="winProb">
 </div>
 
 </div>
@@ -501,42 +357,18 @@ Kalshi YES ask — optional
   min="0"
   max="99"
   step="0.1"
-  placeholder="Example: 55"
->
+  placeholder="Enter YES ask, e.g. 55">
 
-
-<div class="result">
-
-<div class="resultLabel">
-Break-even YES price
-</div>
-
-<div
-  class="price"
-  id="breakEven"
->
-—
-</div>
-
-<div
-  class="winProb"
-  id="winProb"
->
-</div>
 
 <div
   class="tradeBox"
-  id="tradeBox"
->
-</div>
-
+  id="tradeBox">
 </div>
 
 
 <div
   class="footer"
-  id="footer"
->
+  id="footer">
 </div>
 
 </div>
@@ -544,34 +376,9 @@ Break-even YES price
 
 <script>
 
-/*
-==================================================
-NFL SMOOTH MODEL V1
-==================================================
-
-Fit independently from NFL completed-possession
-states covering 2023, 2024, and 2025.
-
-Inputs:
-
-- pregame favorite probability
-- exact score differential
-- exact seconds remaining
-
-Model:
-
-logit(P) =
-time intercept
-+
-positive time-varying weight × pregame log-odds
-+
-positive time-varying weight × score differential
-
-Positive score coefficient guarantees that
-increasing the favorite's lead cannot lower
-its modeled probability.
-*/
-
+/* =========================
+   NFL MODEL
+   ========================= */
 
 const NFL_MODEL = {
 
@@ -590,38 +397,21 @@ theta:[
 ],
 
 probabilities:{
-
-  "50–64%":
-    0.5884945989,
-
-  "65–74%":
-    0.7101917863,
-
-  "75–84%":
-    0.7694025189,
-
-  "85%+":
-    0.8740328625
-
+  "50–64%":0.5884945989,
+  "65–74%":0.7101917863,
+  "75–84%":0.7694025189,
+  "85%+":0.8740328625
 },
 
 label:
-  "NFL Smooth Model v1 • 2023–2025 • 17,650 completed-possession states"
+  "NFL Smooth Model v1 • 2023–2025"
 
 };
 
 
-/*
-==================================================
-COLLEGE TOP-25 SMOOTH MODEL
-==================================================
-
-Fit independently from the 2023–2025
-Top-25 college state dataset.
-
-This is NOT using the NFL coefficients.
-*/
-
+/* =========================
+   COLLEGE MODEL
+   ========================= */
 
 const CFB_MODEL = {
 
@@ -640,19 +430,10 @@ theta:[
 ],
 
 probabilities:{
-
-  "50–69%":
-    0.5947557145,
-
-  "70–84%":
-    0.7660083851,
-
-  "85–94%":
-    0.8979099534,
-
-  "95%+":
-    0.9852538025
-
+  "50–69%":0.5947557145,
+  "70–84%":0.7660083851,
+  "85–94%":0.8979099534,
+  "95%+":0.9852538025
 },
 
 label:
@@ -661,167 +442,85 @@ label:
 };
 
 
-/*
-==================================================
-APP STATE
-==================================================
-*/
+/* =========================
+   APP STATE
+   ========================= */
+
+let sport="nfl";
+
+let probabilityLabel="50–64%";
+
+let minutesRemaining=30;
+
+let scoreDifferential=0;
 
 
-let sport =
-  "nfl";
+/* =========================
+   ELEMENTS
+   ========================= */
 
-let probabilityLabel =
-  "50–64%";
+const probButtons=
+  document.getElementById("probButtons");
 
-let minutesRemaining =
-  30;
+const timeSlider=
+  document.getElementById("timeSlider");
 
-let scoreDifferential =
-  0;
+const scoreSlider=
+  document.getElementById("scoreSlider");
 
+const timeValue=
+  document.getElementById("timeValue");
 
-/*
-==================================================
-ELEMENTS
-==================================================
-*/
+const scoreValue=
+  document.getElementById("scoreValue");
 
+const breakEven=
+  document.getElementById("breakEven");
 
-const probButtons =
-  document.getElementById(
-    "probButtons"
-  );
+const winProb=
+  document.getElementById("winProb");
 
-const timeSlider =
-  document.getElementById(
-    "timeSlider"
-  );
+const askInput=
+  document.getElementById("askInput");
 
-const scoreSlider =
-  document.getElementById(
-    "scoreSlider"
-  );
+const tradeBox=
+  document.getElementById("tradeBox");
 
-const timeValue =
-  document.getElementById(
-    "timeValue"
-  );
-
-const scoreValue =
-  document.getElementById(
-    "scoreValue"
-  );
-
-const breakEven =
-  document.getElementById(
-    "breakEven"
-  );
-
-const winProb =
-  document.getElementById(
-    "winProb"
-  );
-
-const askInput =
-  document.getElementById(
-    "askInput"
-  );
-
-const tradeBox =
-  document.getElementById(
-    "tradeBox"
-  );
-
-const footer =
-  document.getElementById(
-    "footer"
-  );
+const footer=
+  document.getElementById("footer");
 
 
-/*
-==================================================
-HELPERS
-==================================================
-*/
-
+/* =========================
+   HELPERS
+   ========================= */
 
 function sigmoid(z){
 
-  if(z > 35){
+  if(z>35){
     return 1;
   }
 
-  if(z < -35){
+  if(z<-35){
     return 0;
   }
 
-  return (
-    1 /
-    (
-      1 +
-      Math.exp(-z)
-    )
-  );
+  return 1/(1+Math.exp(-z));
 
 }
 
 
 function logit(p){
 
-  p =
-    Math.max(
-      0.00001,
-      Math.min(
-        0.99999,
-        p
-      )
-    );
-
-  return Math.log(
-    p /
-    (
-      1-p
+  p=Math.max(
+    0.00001,
+    Math.min(
+      0.99999,
+      p
     )
   );
 
-}
-
-
-function formatScore(x){
-
-  if(x > 0){
-    return "+" + x;
-  }
-
-  return String(x);
-
-}
-
-
-function formatPrice(x){
-
-  const v =
-    Math.round(
-      x * 10
-    ) / 10;
-
-  if(
-    Number.isInteger(v)
-  ){
-
-    return (
-      v.toFixed(0)
-      +
-      "¢"
-    );
-
-  }
-
-  return (
-    v.toFixed(1)
-    +
-    "¢"
+  return Math.log(
+    p/(1-p)
   );
 
 }
@@ -829,96 +528,92 @@ function formatPrice(x){
 
 function currentModel(){
 
-  if(
-    sport === "nfl"
-  ){
-
-    return NFL_MODEL;
-
-  }
-
-  return CFB_MODEL;
+  return sport==="nfl"
+    ? NFL_MODEL
+    : CFB_MODEL;
 
 }
 
 
-/*
-==================================================
-CONTINUOUS PROBABILITY MODEL
-==================================================
-*/
+function formatScore(x){
+
+  return x>0
+    ? "+"+x
+    : String(x);
+
+}
 
 
-function modelProbability(){
+function formatPrice(x){
 
-  const model =
+  const value=
+    Math.round(x*10)/10;
+
+  return (
+    Number.isInteger(value)
+      ? value.toFixed(0)
+      : value.toFixed(1)
+  )+"¢";
+
+}
+
+
+/* =========================
+   MODEL CALCULATION
+   ========================= */
+
+function calculateProbability(){
+
+  const model=
     currentModel();
 
-  const theta =
+  const theta=
     model.theta;
 
-  const pregame =
-    model
-      .probabilities
-      [probabilityLabel];
+  const pregame=
+    model.probabilities[
+      probabilityLabel
+    ];
+
+  const t=
+    minutesRemaining/60;
+
+  const t2=
+    t*t;
+
+  const pregameLogOdds=
+    logit(pregame);
 
 
-  /*
-  Model uses fraction of full game remaining.
-
-  60 minutes remaining = 1
-  0 minutes remaining = 0
-  */
-
-  const t =
-    minutesRemaining
-    /
-    60;
-
-  const t2 =
-    t * t;
-
-
-  const pregameLogOdds =
-    logit(
-      pregame
-    );
-
-
-  const intercept =
+  const intercept=
     theta[0]
     +
-    theta[1] * t
+    theta[1]*t
     +
-    theta[2] * t2;
+    theta[2]*t2;
 
 
-  /*
-  Exponentiation forces these weights
-  to remain positive.
-  */
-
-  const pregameWeight =
+  const pregameWeight=
     Math.exp(
       theta[3]
       +
-      theta[4] * t
+      theta[4]*t
       +
-      theta[5] * t2
+      theta[5]*t2
     );
 
 
-  const scoreWeight =
+  const scoreWeight=
     Math.exp(
       theta[6]
       +
-      theta[7] * t
+      theta[7]*t
       +
-      theta[8] * t2
+      theta[8]*t2
     );
 
 
-  const z =
+  const z=
     intercept
     +
     pregameWeight
@@ -935,30 +630,25 @@ function modelProbability(){
 }
 
 
-/*
-==================================================
-BREAK-EVEN PRICE
-==================================================
+/* =========================
+   YES BREAK-EVEN
+   ========================= */
 
-Flat 1.5 CENT fee.
+function calculateBreakEven(){
 
-Not 1.5 percent.
-*/
+  const probability=
+    calculateProbability();
 
+  /*
+  Flat 1.5 CENT fee per contract.
+  */
 
-function getBreakEven(){
-
-  const probability =
-    modelProbability();
-
-
-  let cents =
-    probability * 100
+  let cents=
+    probability*100
     -
     1.5;
 
-
-  cents =
+  cents=
     Math.max(
       0,
       Math.min(
@@ -967,38 +657,25 @@ function getBreakEven(){
       )
     );
 
-
   return {
-
-    probability:
-      probability,
-
-    cents:
-      cents
-
+    probability,
+    cents
   };
 
 }
 
 
-/*
-==================================================
-PROBABILITY BUTTONS
-==================================================
-*/
-
+/* =========================
+   PROBABILITY BUTTONS
+   ========================= */
 
 function renderProbabilityButtons(){
 
-  const model =
-    currentModel();
-
-
-  const labels =
+  const labels=
     Object.keys(
-      model.probabilities
+      currentModel()
+        .probabilities
     );
-
 
   if(
     !labels.includes(
@@ -1006,186 +683,154 @@ function renderProbabilityButtons(){
     )
   ){
 
-    probabilityLabel =
+    probabilityLabel=
       labels[0];
 
   }
 
+  probButtons.innerHTML="";
 
-  probButtons.innerHTML =
-    "";
+  labels.forEach(label=>{
 
-
-  labels.forEach(
-    label=>{
-
-      const button =
-        document.createElement(
-          "button"
-        );
-
-
-      button.type =
-        "button";
-
-
-      button.textContent =
-        label;
-
-
-      if(
-        label ===
-        probabilityLabel
-      ){
-
-        button
-          .classList
-          .add(
-            "active"
-          );
-
-      }
-
-
-      button.addEventListener(
-        "click",
-        ()=>{
-
-          probabilityLabel =
-            label;
-
-
-          renderProbabilityButtons();
-
-          renderResult();
-
-        }
+    const button=
+      document.createElement(
+        "button"
       );
 
+    button.type="button";
 
-      probButtons
-        .appendChild(
-          button
-        );
+    button.textContent=
+      label;
+
+    if(
+      label===
+      probabilityLabel
+    ){
+
+      button.classList.add(
+        "active"
+      );
 
     }
-  );
+
+    button.addEventListener(
+      "click",
+      ()=>{
+
+        probabilityLabel=
+          label;
+
+        renderProbabilityButtons();
+
+        renderResult();
+
+      }
+    );
+
+    probButtons.appendChild(
+      button
+    );
+
+  });
 
 }
 
 
-/*
-==================================================
-TRADE CLASSIFICATION
-==================================================
-*/
+/* =========================
+   TRADE CLASSIFICATION
+   ========================= */
 
-
-function renderTradeClassification(
-  fairCents
+function renderTrade(
+  fairPrice
 ){
 
-  const raw =
-    askInput.value.trim();
+  const raw=
+    askInput
+      .value
+      .trim();
 
+  if(raw===""){
 
-  if(
-    raw === ""
-  ){
-
-    tradeBox.className =
+    tradeBox.className=
       "tradeBox";
 
-    tradeBox.textContent =
-      "";
+    tradeBox.innerHTML="";
 
     return;
 
   }
 
-
-  const ask =
+  const ask=
     Number(raw);
-
 
   if(
     !Number.isFinite(ask)
   ){
 
-    tradeBox.className =
+    tradeBox.className=
       "tradeBox";
-
-    tradeBox.textContent =
-      "";
 
     return;
 
   }
 
-
-  const discount =
-    fairCents
+  const discount=
+    fairPrice
     -
     ask;
 
 
-  let classification;
-  let cssClass;
+  let label;
+  let css;
 
 
-  if(
-    discount >= 10
-  ){
+  if(discount>=10){
 
-    classification =
+    label=
       "STRONG BUY candidate";
 
-    cssClass =
+    css=
       "strong";
 
   }
 
+  else if(discount>=5){
 
-  else if(
-    discount >= 5
-  ){
-
-    classification =
+    label=
       "BUY candidate";
 
-    cssClass =
+    css=
       "buy";
 
   }
 
-
   else{
 
-    classification =
+    label=
       "PASS";
 
-    cssClass =
+    css=
       "pass";
 
   }
 
 
-  tradeBox.className =
+  tradeBox.className=
     "tradeBox "
     +
-    cssClass;
+    css;
 
 
-  tradeBox.innerHTML =
-    classification
+  tradeBox.innerHTML=
+    label
     +
     '<div class="discount">'
     +
-    "Ask "
+    "YES ask: "
     +
     formatPrice(ask)
     +
-    " • Discount "
+    " • Edge: "
     +
     formatPrice(discount)
     +
@@ -1194,39 +839,36 @@ function renderTradeClassification(
 }
 
 
-/*
-==================================================
-RESULT
-==================================================
-*/
-
+/* =========================
+   RENDER
+   ========================= */
 
 function renderResult(){
 
-  timeValue.textContent =
+  timeValue.textContent=
     minutesRemaining
     +
     " min";
 
 
-  scoreValue.textContent =
+  scoreValue.textContent=
     formatScore(
       scoreDifferential
     );
 
 
-  const result =
-    getBreakEven();
+  const result=
+    calculateBreakEven();
 
 
-  breakEven.textContent =
+  breakEven.textContent=
     formatPrice(
       result.cents
     );
 
 
-  winProb.textContent =
-    "Modeled win probability "
+  winProb.textContent=
+    "Modeled favorite win probability: "
     +
     (
       result.probability
@@ -1237,96 +879,80 @@ function renderResult(){
     "%";
 
 
-  renderTradeClassification(
+  renderTrade(
     result.cents
   );
 
 
-  footer.textContent =
-    currentModel()
-      .label
+  footer.textContent=
+    currentModel().label
     +
-    " • Research estimates, not proof of profitable trades.";
+    " • Research model";
 
 }
 
 
-/*
-==================================================
-SPORT BUTTONS
-==================================================
-*/
-
+/* =========================
+   SPORT BUTTONS
+   ========================= */
 
 document
   .querySelectorAll(
     "#sportButtons button"
   )
-  .forEach(
-    button=>{
+  .forEach(button=>{
 
-      button.addEventListener(
-        "click",
-        ()=>{
+    button.addEventListener(
+      "click",
+      ()=>{
 
-          sport =
-            button
-              .dataset
-              .sport;
+        sport=
+          button.dataset.sport;
 
 
-          document
-            .querySelectorAll(
-              "#sportButtons button"
-            )
-            .forEach(
-              b=>{
+        document
+          .querySelectorAll(
+            "#sportButtons button"
+          )
+          .forEach(b=>{
 
-                b
-                  .classList
-                  .toggle(
-                    "active",
-                    b === button
-                  );
-
-              }
+            b.classList.toggle(
+              "active",
+              b===button
             );
 
-
-          probabilityLabel =
-            Object.keys(
-              currentModel()
-                .probabilities
-            )[0];
+          });
 
 
-          renderProbabilityButtons();
-
-          renderResult();
-
-        }
-      );
-
-    }
-  );
+        probabilityLabel=
+          Object.keys(
+            currentModel()
+              .probabilities
+          )[0];
 
 
-/*
-==================================================
-TIME SLIDER
-==================================================
-*/
+        renderProbabilityButtons();
 
+        renderResult();
+
+      }
+    );
+
+  });
+
+
+/* =========================
+   TIME SLIDER
+   ========================= */
 
 timeSlider.addEventListener(
   "input",
   ()=>{
 
-    minutesRemaining =
+    minutesRemaining=
       Number(
         timeSlider.value
       );
-
 
     renderResult();
 
@@ -1334,22 +960,18 @@ timeSlider.addEventListener(
 );
 
 
-/*
-==================================================
-SCORE SLIDER
-==================================================
-*/
-
+/* =========================
+   SCORE SLIDER
+   ========================= */
 
 scoreSlider.addEventListener(
   "input",
   ()=>{
 
-    scoreDifferential =
+    scoreDifferential=
       Number(
         scoreSlider.value
       );
-
 
     renderResult();
 
@@ -1357,12 +979,9 @@ scoreSlider.addEventListener(
 );
 
 
-/*
-==================================================
-KALSHI ASK
-==================================================
-*/
-
+/* =========================
+   ASK INPUT
+   ========================= */
 
 askInput.addEventListener(
   "input",
@@ -1374,12 +993,9 @@ askInput.addEventListener(
 );
 
 
-/*
-==================================================
-START
-==================================================
-*/
-
+/* =========================
+   START
+   ========================= */
 
 renderProbabilityButtons();
 
