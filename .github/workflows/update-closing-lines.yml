@@ -38,21 +38,20 @@ jobs:
               "sports/football/nfl/scoreboard"
           )
 
-          JINA_GAME = (
-              "https://r.jina.ai/"
-              "https://theoddsgap.com/odds/nfl/"
-          )
-
-          JINA_WEEKLY = (
+          JINA_ODDS_GAP = (
               "https://r.jina.ai/"
               "https://theoddsgap.com/weeklyslate/nfl"
+          )
+
+          JINA_STATMUSE = (
+              "https://r.jina.ai/"
+              "https://www.statmuse.com/nfl/ask/nfl-moneylines"
           )
 
           OUT = Path("closing-lines.json")
 
 
           def fetch_text(url):
-
               req = urllib.request.Request(
                   url,
                   headers={
@@ -73,46 +72,12 @@ jobs:
 
 
           def fetch_json(url):
-
               return json.loads(
                   fetch_text(url)
               )
 
 
-          def slugify(name):
-
-              return (
-                  name
-                  .lower()
-                  .replace("&", "and")
-                  .replace("'", "")
-                  .replace(".", "")
-                  .replace(" ", "-")
-                  .replace("--", "-")
-                  .strip("-")
-              )
-
-
-          def eastern_date(iso_date):
-
-              dt = datetime.fromisoformat(
-                  iso_date.replace(
-                      "Z",
-                      "+00:00",
-                  )
-              )
-
-              return dt.astimezone(
-                  ZoneInfo(
-                      "America/New_York"
-                  )
-              ).strftime(
-                  "%Y-%m-%d"
-              )
-
-
-          def clean_text(text):
-
+          def clean(text):
               return (
                   text
                   .replace("−", "-")
@@ -121,156 +86,93 @@ jobs:
               )
 
 
-          def extract_novig_from_team_section(
-              segment,
-              team_name,
-          ):
-
-              escaped = re.escape(
-                  team_name
-              )
-
-              #
-              # Supports both:
-              #
-              # #### Team Moneyline at Close
-              #
-              # and the finalized-page format:
-              #
-              # #### Team at Close, Best to Worst
-              #
-
-              header = re.search(
-                  rf"####\s+"
-                  rf"(?:\[\d+†)?"
-                  rf"{escaped}"
-                  rf"(?:\])?"
-                  rf"\s+"
-                  rf"(?:Moneyline\s+at\s+Close|at\s+Close,\s+Best\s+to\s+Worst)",
-                  segment,
-                  flags=re.I,
-              )
-
-              if not header:
-
-                  return None
-
-
-              after = segment[
-                  header.end():
-              ]
-
-
-              next_section = re.search(
-                  r"\n####\s+",
-                  after,
+          def normalize_team(name):
+              return (
+                  name.lower()
+                  .replace("&", "and")
+                  .replace(".", "")
+                  .replace("'", "")
+                  .replace("-", " ")
+                  .replace("  ", " ")
+                  .strip()
               )
 
 
-              if next_section:
+          def team_aliases(name):
+              n = normalize_team(name)
 
-                  block = after[
-                      :next_section.start()
-                  ]
+              aliases = {
+                  "san francisco 49ers": [
+                      "san francisco 49ers",
+                      "san francisco",
+                  ],
+                  "los angeles rams": [
+                      "los angeles rams",
+                      "la rams",
+                  ],
+                  "las vegas raiders": [
+                      "las vegas raiders",
+                      "raiders",
+                  ],
+                  "green bay packers": [
+                      "green bay packers",
+                      "green bay",
+                  ],
+                  "detroit lions": [
+                      "detroit lions",
+                      "detroit",
+                  ],
+              }
 
-              else:
-
-                  block = after
-
-
-              patterns = [
-
-                  r"\|\s*Novig\s*\|\s*([+-]\d+)",
-
-                  r"Novig\s*\|\s*([+-]\d+)",
-
-                  r"Novig\s+([+-]\d+)",
-
-              ]
-
-
-              for pattern in patterns:
-
-                  match = re.search(
-                      pattern,
-                      block,
-                      flags=re.I,
-                  )
-
-                  if match:
-
-                      return int(
-                          match.group(1)
-                      )
+              return aliases.get(
+                  n,
+                  [n],
+              )
 
 
-              return None
-
-
-          def parse_individual_game_close(
-              text,
+          def matchup_matches(
+              row_away,
+              row_home,
               away_name,
               home_name,
           ):
 
-              text = clean_text(
-                  text
+              row_away = normalize_team(
+                  row_away
               )
 
-
-              #
-              # Require explicit closing terminology.
-              #
-
-              if not re.search(
-                  r"Moneyline\s+at\s+Close|"
-                  r"Closing\s+Moneyline|"
-                  r"at\s+Close,\s+Best\s+to\s+Worst",
-                  text,
-                  flags=re.I,
-              ):
-
-                  return None
-
-
-              away_ml = (
-                  extract_novig_from_team_section(
-                      text,
-                      away_name,
-                  )
+              row_home = normalize_team(
+                  row_home
               )
 
-
-              home_ml = (
-                  extract_novig_from_team_section(
-                      text,
-                      home_name,
-                  )
+              away_aliases = team_aliases(
+                  away_name
               )
 
-
-              if (
-                  away_ml is None
-                  or
-                  home_ml is None
-              ):
-
-                  return None
-
+              home_aliases = team_aliases(
+                  home_name
+              )
 
               return (
-                  away_ml,
-                  home_ml,
+                  any(
+                      alias == row_away
+                      for alias in away_aliases
+                  )
+                  and
+                  any(
+                      alias == row_home
+                      for alias in home_aliases
+                  )
               )
 
 
-          def parse_weekly_close(
+          def parse_odds_gap(
               text,
               away_name,
               home_name,
           ):
 
-              text = clean_text(
+              text = clean(
                   text
               )
 
@@ -283,15 +185,6 @@ jobs:
                   home_name
               )
 
-
-              #
-              # Find the exact matchup block:
-              #
-              # ### Green Bay Packers at Detroit Lions
-              #
-              # Jina may optionally wrap the heading
-              # in a markdown link marker.
-              #
 
               heading = re.search(
                   rf"^###\s+"
@@ -307,7 +200,6 @@ jobs:
 
 
               if not heading:
-
                   return None
 
 
@@ -316,7 +208,7 @@ jobs:
               ]
 
 
-              next_matchup = re.search(
+              next_heading = re.search(
                   r"\n###\s+",
                   after[
                       len(
@@ -326,30 +218,22 @@ jobs:
               )
 
 
-              if next_matchup:
+              if next_heading:
 
-                  segment_end = (
+                  end = (
                       len(
                           heading.group(0)
                       )
                       +
-                      next_matchup.start()
+                      next_heading.start()
                   )
 
-                  segment = after[
-                      :segment_end
-                  ]
+                  segment = after[:end]
 
               else:
 
                   segment = after
 
-
-              #
-              # Safety requirement:
-              # the matchup block must explicitly
-              # contain closing-price language.
-              #
 
               if not re.search(
                   r"Moneyline\s+at\s+Close|"
@@ -361,19 +245,72 @@ jobs:
                   return None
 
 
-              away_ml = (
-                  extract_novig_from_team_section(
-                      segment,
-                      away_name,
+              def team_close(team_name):
+
+                  escaped = re.escape(
+                      team_name
                   )
+
+
+                  header = re.search(
+                      rf"####\s+"
+                      rf"(?:\[\d+†)?"
+                      rf"{escaped}"
+                      rf"(?:\])?"
+                      rf"\s+"
+                      rf"(?:Moneyline\s+at\s+Close|"
+                      rf"at\s+Close,\s+Best\s+to\s+Worst)",
+                      segment,
+                      flags=re.I,
+                  )
+
+
+                  if not header:
+                      return None
+
+
+                  block = segment[
+                      header.end():
+                  ]
+
+
+                  next_section = re.search(
+                      r"\n####\s+",
+                      block,
+                  )
+
+
+                  if next_section:
+                      block = block[
+                          :next_section.start()
+                      ]
+
+
+                  match = re.search(
+                      r"(?:\|\s*)?"
+                      r"Novig"
+                      r"\s*(?:\|\s*|\s+)"
+                      r"([+-]\d+)",
+                      block,
+                      flags=re.I,
+                  )
+
+
+                  if not match:
+                      return None
+
+
+                  return int(
+                      match.group(1)
+                  )
+
+
+              away_ml = team_close(
+                  away_name
               )
 
-
-              home_ml = (
-                  extract_novig_from_team_section(
-                      segment,
-                      home_name,
-                  )
+              home_ml = team_close(
+                  home_name
               )
 
 
@@ -390,6 +327,97 @@ jobs:
                   away_ml,
                   home_ml,
               )
+
+
+          def parse_statmuse(
+              text,
+              away_name,
+              home_name,
+          ):
+
+              text = clean(
+                  text
+              )
+
+
+              #
+              # Safety requirement:
+              # only use StatMuse if the page explicitly
+              # says "Consensus closing odds".
+              #
+
+              if not re.search(
+                  r"Consensus closing odds",
+                  text,
+                  flags=re.I,
+              ):
+
+                  return None
+
+
+              #
+              # Jina renders StatMuse rows roughly as:
+              #
+              # | Los Angeles Rams | -178 | @ |
+              #   Las Vegas Raiders | +149 |
+              #
+              # Match the row generically, then confirm
+              # both team names correspond to ESPN's matchup.
+              #
+
+              row_pattern = re.compile(
+                  r"\|\s*"
+                  r"([^|\n]+?)"
+                  r"\s*\|\s*"
+                  r"([+-]\d+)"
+                  r"\s*\|\s*@\s*\|\s*"
+                  r"([^|\n]+?)"
+                  r"\s*\|\s*"
+                  r"([+-]\d+)"
+                  r"\s*\|",
+                  flags=re.I,
+              )
+
+
+              for match in row_pattern.finditer(
+                  text
+              ):
+
+                  row_away = match.group(
+                      1
+                  ).strip()
+
+                  away_ml = int(
+                      match.group(
+                          2
+                      )
+                  )
+
+                  row_home = match.group(
+                      3
+                  ).strip()
+
+                  home_ml = int(
+                      match.group(
+                          4
+                      )
+                  )
+
+
+                  if matchup_matches(
+                      row_away,
+                      row_home,
+                      away_name,
+                      home_name,
+                  ):
+
+                      return (
+                          away_ml,
+                          home_ml,
+                      )
+
+
+              return None
 
 
           if OUT.exists():
@@ -440,27 +468,42 @@ jobs:
           )
 
 
-          #
-          # Fetch weekly board once.
-          # This becomes our fallback source.
-          #
-
           try:
 
-              weekly_text = fetch_text(
-                  JINA_WEEKLY
+              odds_gap_text = fetch_text(
+                  JINA_ODDS_GAP
               )
 
               print(
-                  "Weekly board loaded."
+                  "Odds Gap weekly board loaded."
               )
 
           except Exception as exc:
 
-              weekly_text = ""
+              odds_gap_text = ""
 
               print(
-                  "Weekly board fetch failed:",
+                  "Odds Gap fetch failed:",
+                  exc,
+              )
+
+
+          try:
+
+              statmuse_text = fetch_text(
+                  JINA_STATMUSE
+              )
+
+              print(
+                  "StatMuse closing-odds page loaded."
+              )
+
+          except Exception as exc:
+
+              statmuse_text = ""
+
+              print(
+                  "StatMuse fetch failed:",
                   exc,
               )
 
@@ -483,7 +526,6 @@ jobs:
 
 
               if not competitions:
-
                   continue
 
 
@@ -509,8 +551,8 @@ jobs:
 
 
               #
-              # Never capture a pregame price.
-              # Game must be underway or final.
+              # Critical:
+              # never save a line before kickoff.
               #
 
               if state not in (
@@ -535,8 +577,7 @@ jobs:
 
 
               #
-              # Once a frozen closing line
-              # has been stored, never overwrite it.
+              # Once stored, never overwrite.
               #
 
               if (
@@ -634,23 +675,6 @@ jobs:
                   continue
 
 
-              game_date = eastern_date(
-                  event[
-                      "date"
-                  ]
-              )
-
-
-              individual_url = (
-                  f"{JINA_GAME}"
-                  f"{slugify(away_name)}"
-                  f"-vs-"
-                  f"{slugify(home_name)}"
-                  f"/"
-                  f"{game_date}"
-              )
-
-
               print()
               print(
                   "Checking:",
@@ -661,85 +685,67 @@ jobs:
 
 
               closing = None
-
               source_used = None
 
 
               #
-              # FIRST:
-              # permanent individual game page
+              # PRIMARY:
+              # Odds Gap explicit Novig close.
               #
 
-              try:
+              if odds_gap_text:
 
-                  game_page = fetch_text(
-                      individual_url
-                  )
-
-
-                  closing = (
-                      parse_individual_game_close(
-                          game_page,
-                          away_name,
-                          home_name,
-                      )
+                  closing = parse_odds_gap(
+                      odds_gap_text,
+                      away_name,
+                      home_name,
                   )
 
 
                   if closing:
 
                       source_used = (
-                          "individual game page"
+                          "Odds Gap Novig close"
                       )
 
                       print(
-                          "Found on individual page."
+                          "Found on Odds Gap."
                       )
 
 
-              except Exception as exc:
-
-                  print(
-                      "Individual page failed:",
-                      exc,
-                  )
-
-
               #
-              # SECOND:
-              # weekly-board fallback
+              # FALLBACK:
+              # StatMuse consensus closing odds.
               #
 
               if (
                   closing is None
                   and
-                  weekly_text
+                  statmuse_text
               ):
 
-                  closing = (
-                      parse_weekly_close(
-                          weekly_text,
-                          away_name,
-                          home_name,
-                      )
+                  closing = parse_statmuse(
+                      statmuse_text,
+                      away_name,
+                      home_name,
                   )
 
 
                   if closing:
 
                       source_used = (
-                          "weekly board fallback"
+                          "StatMuse consensus closing odds"
                       )
 
                       print(
-                          "Found on weekly board."
+                          "Found on StatMuse."
                       )
 
 
               if closing is None:
 
                   print(
-                      "No explicit frozen closing line found."
+                      "No verified closing line found."
                   )
 
                   continue
@@ -757,9 +763,6 @@ jobs:
                   "event_id":
                       game_id,
 
-                  "date":
-                      game_date,
-
                   "away":
                       away_name,
 
@@ -773,12 +776,6 @@ jobs:
                       home_ml,
 
                   "source":
-                      (
-                          "The Odds Gap "
-                          "Novig closing moneyline"
-                      ),
-
-                  "lookup":
                       source_used,
 
               }
@@ -791,6 +788,8 @@ jobs:
                   "Saved:",
                   away_ml,
                   home_ml,
+                  "from",
+                  source_used,
               )
 
 
@@ -848,23 +847,14 @@ jobs:
           fi
 
 
-          git config \
-            user.name \
-            "github-actions[bot]"
+          git config user.name "github-actions[bot]"
 
-
-          git config \
-            user.email \
+          git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
 
 
-          git add \
-            closing-lines.json
+          git add closing-lines.json
 
-
-          git commit \
-            -m \
-            "Update NFL closing lines"
-
+          git commit -m "Update NFL closing lines"
 
           git push
