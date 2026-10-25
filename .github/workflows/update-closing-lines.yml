@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Refresh frozen NFL closing lines
+      - name: Append verified NFL closing lines
         shell: bash
         run: |
           python - <<'PY'
@@ -33,17 +33,14 @@ jobs:
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
-          ESPN = (
-              "https://site.api.espn.com/apis/site/v2/"
-              "sports/football/nfl/scoreboard"
-          )
+          ESPN = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
 
-          JINA_ODDS_GAP = (
+          ODDS_GAP = (
               "https://r.jina.ai/"
               "https://theoddsgap.com/weeklyslate/nfl"
           )
 
-          JINA_STATMUSE = (
+          STATMUSE = (
               "https://r.jina.ai/"
               "https://www.statmuse.com/nfl/ask/nfl-moneylines"
           )
@@ -64,7 +61,6 @@ jobs:
                   req,
                   timeout=30,
               ) as response:
-
                   return response.read().decode(
                       "utf-8",
                       errors="replace",
@@ -102,9 +98,13 @@ jobs:
               n = normalize_team(name)
 
               aliases = {
-                  "san francisco 49ers": [
-                      "san francisco 49ers",
-                      "san francisco",
+                  "green bay packers": [
+                      "green bay packers",
+                      "green bay",
+                  ],
+                  "detroit lions": [
+                      "detroit lions",
+                      "detroit",
                   ],
                   "los angeles rams": [
                       "los angeles rams",
@@ -114,13 +114,9 @@ jobs:
                       "las vegas raiders",
                       "raiders",
                   ],
-                  "green bay packers": [
-                      "green bay packers",
-                      "green bay",
-                  ],
-                  "detroit lions": [
-                      "detroit lions",
-                      "detroit",
+                  "san francisco 49ers": [
+                      "san francisco 49ers",
+                      "san francisco",
                   ],
               }
 
@@ -136,7 +132,6 @@ jobs:
               away_name,
               home_name,
           ):
-
               row_away = normalize_team(
                   row_away
               )
@@ -145,25 +140,81 @@ jobs:
                   row_home
               )
 
-              away_aliases = team_aliases(
-                  away_name
-              )
-
-              home_aliases = team_aliases(
-                  home_name
-              )
-
               return (
-                  any(
-                      alias == row_away
-                      for alias in away_aliases
+                  row_away
+                  in
+                  team_aliases(
+                      away_name
                   )
                   and
-                  any(
-                      alias == row_home
-                      for alias in home_aliases
+                  row_home
+                  in
+                  team_aliases(
+                      home_name
                   )
               )
+
+
+          def parse_statmuse(
+              text,
+              away_name,
+              home_name,
+          ):
+              text = clean(text)
+
+              if not re.search(
+                  r"Consensus closing odds",
+                  text,
+                  flags=re.I,
+              ):
+                  return None
+
+              #
+              # Jina may wrap team names like:
+              #
+              # 【40†Los Angeles Rams】
+              #
+              # This parser accepts both wrapped
+              # and plain team names.
+              #
+
+              row_pattern = re.compile(
+                  r"\|\s*"
+                  r"(?:【\d+†)?"
+                  r"([^|】\n]+?)"
+                  r"(?:】)?"
+                  r"\s*\|\s*"
+                  r"([+-]\d+)"
+                  r"\s*\|\s*@\s*\|\s*"
+                  r"(?:【\d+†)?"
+                  r"([^|】\n]+?)"
+                  r"(?:】)?"
+                  r"\s*\|\s*"
+                  r"([+-]\d+)",
+                  flags=re.I,
+              )
+
+              for match in row_pattern.finditer(
+                  text
+              ):
+                  row_away = match.group(1).strip()
+                  away_ml = int(match.group(2))
+
+                  row_home = match.group(3).strip()
+                  home_ml = int(match.group(4))
+
+                  if matchup_matches(
+                      row_away,
+                      row_home,
+                      away_name,
+                      home_name,
+                  ):
+                      return (
+                          away_ml,
+                          home_ml,
+                      )
+
+              return None
 
 
           def parse_odds_gap(
@@ -171,11 +222,7 @@ jobs:
               away_name,
               home_name,
           ):
-
-              text = clean(
-                  text
-              )
-
+              text = clean(text)
 
               escaped_away = re.escape(
                   away_name
@@ -184,7 +231,6 @@ jobs:
               escaped_home = re.escape(
                   home_name
               )
-
 
               heading = re.search(
                   rf"^###\s+"
@@ -198,15 +244,12 @@ jobs:
                   flags=re.I | re.M,
               )
 
-
               if not heading:
                   return None
-
 
               after = text[
                   heading.start():
               ]
-
 
               next_heading = re.search(
                   r"\n###\s+",
@@ -217,9 +260,7 @@ jobs:
                   ],
               )
 
-
               if next_heading:
-
                   end = (
                       len(
                           heading.group(0)
@@ -231,9 +272,7 @@ jobs:
                   segment = after[:end]
 
               else:
-
                   segment = after
-
 
               if not re.search(
                   r"Moneyline\s+at\s+Close|"
@@ -241,16 +280,12 @@ jobs:
                   segment,
                   flags=re.I,
               ):
-
                   return None
 
-
               def team_close(team_name):
-
                   escaped = re.escape(
                       team_name
                   )
-
 
                   header = re.search(
                       rf"####\s+"
@@ -264,27 +299,22 @@ jobs:
                       flags=re.I,
                   )
 
-
                   if not header:
                       return None
-
 
                   block = segment[
                       header.end():
                   ]
-
 
                   next_section = re.search(
                       r"\n####\s+",
                       block,
                   )
 
-
                   if next_section:
                       block = block[
                           :next_section.start()
                       ]
-
 
                   match = re.search(
                       r"(?:\|\s*)?"
@@ -295,15 +325,12 @@ jobs:
                       flags=re.I,
                   )
 
-
                   if not match:
                       return None
-
 
                   return int(
                       match.group(1)
                   )
-
 
               away_ml = team_close(
                   away_name
@@ -313,15 +340,12 @@ jobs:
                   home_name
               )
 
-
               if (
                   away_ml is None
                   or
                   home_ml is None
               ):
-
                   return None
-
 
               return (
                   away_ml,
@@ -329,123 +353,33 @@ jobs:
               )
 
 
-          def parse_statmuse(
-              text,
-              away_name,
-              home_name,
-          ):
-
-              text = clean(
-                  text
-              )
-
-
-              #
-              # Safety requirement:
-              # only use StatMuse if the page explicitly
-              # says "Consensus closing odds".
-              #
-
-              if not re.search(
-                  r"Consensus closing odds",
-                  text,
-                  flags=re.I,
-              ):
-
-                  return None
-
-
-              #
-              # Jina renders StatMuse rows roughly as:
-              #
-              # | Los Angeles Rams | -178 | @ |
-              #   Las Vegas Raiders | +149 |
-              #
-              # Match the row generically, then confirm
-              # both team names correspond to ESPN's matchup.
-              #
-
-              row_pattern = re.compile(
-                  r"\|\s*"
-                  r"([^|\n]+?)"
-                  r"\s*\|\s*"
-                  r"([+-]\d+)"
-                  r"\s*\|\s*@\s*\|\s*"
-                  r"([^|\n]+?)"
-                  r"\s*\|\s*"
-                  r"([+-]\d+)"
-                  r"\s*\|",
-                  flags=re.I,
-              )
-
-
-              for match in row_pattern.finditer(
-                  text
-              ):
-
-                  row_away = match.group(
-                      1
-                  ).strip()
-
-                  away_ml = int(
-                      match.group(
-                          2
-                      )
-                  )
-
-                  row_home = match.group(
-                      3
-                  ).strip()
-
-                  home_ml = int(
-                      match.group(
-                          4
-                      )
-                  )
-
-
-                  if matchup_matches(
-                      row_away,
-                      row_home,
-                      away_name,
-                      home_name,
-                  ):
-
-                      return (
-                          away_ml,
-                          home_ml,
-                      )
-
-
-              return None
-
-
           if OUT.exists():
-
               try:
-
                   data = json.loads(
                       OUT.read_text()
                   )
-
-              except Exception:
-
-                  data = {
-                      "updated_at": None,
-                      "games": {},
-                  }
-
+              except Exception as exc:
+                  print(
+                      "Existing JSON could not be read:",
+                      exc,
+                  )
+                  raise
           else:
-
               data = {
                   "updated_at": None,
                   "games": {},
               }
 
 
-          games = data.setdefault(
-              "games",
-              {},
+          if "games" not in data:
+              data["games"] = {}
+
+
+          games = data["games"]
+
+          original_text = json.dumps(
+              data,
+              sort_keys=True,
           )
 
 
@@ -455,55 +389,47 @@ jobs:
               )
           )
 
-
-          date_query = now_et.strftime(
+          today = now_et.strftime(
               "%Y%m%d"
           )
 
-
           scoreboard = fetch_json(
-              f"{ESPN}"
-              f"?limit=100"
-              f"&dates={date_query}"
+              f"{ESPN}?limit=100&dates={today}"
           )
 
 
           try:
-
               odds_gap_text = fetch_text(
-                  JINA_ODDS_GAP
+                  ODDS_GAP
               )
 
               print(
-                  "Odds Gap weekly board loaded."
+                  "Odds Gap loaded."
               )
 
           except Exception as exc:
-
               odds_gap_text = ""
 
               print(
-                  "Odds Gap fetch failed:",
+                  "Odds Gap failed:",
                   exc,
               )
 
 
           try:
-
               statmuse_text = fetch_text(
-                  JINA_STATMUSE
+                  STATMUSE
               )
 
               print(
-                  "StatMuse closing-odds page loaded."
+                  "StatMuse loaded."
               )
 
           except Exception as exc:
-
               statmuse_text = ""
 
               print(
-                  "StatMuse fetch failed:",
+                  "StatMuse failed:",
                   exc,
               )
 
@@ -515,7 +441,6 @@ jobs:
               "events",
               [],
           ):
-
               competitions = (
                   event.get(
                       "competitions"
@@ -524,15 +449,10 @@ jobs:
                   []
               )
 
-
               if not competitions:
                   continue
 
-
-              competition = competitions[
-                  0
-              ]
-
+              competition = competitions[0]
 
               state = (
                   competition
@@ -549,19 +469,11 @@ jobs:
                   )
               )
 
-
-              #
-              # Critical:
-              # never save a line before kickoff.
-              #
-
               if state not in (
                   "in",
                   "post",
               ):
-
                   continue
-
 
               game_id = str(
                   event.get(
@@ -569,39 +481,22 @@ jobs:
                   )
               )
 
-
-              existing = games.get(
-                  game_id,
-                  {},
-              )
-
-
               #
-              # Once stored, never overwrite.
+              # APPEND ONLY:
+              # if already saved, leave it untouched.
               #
 
-              if (
-                  existing.get(
-                      "away_ml"
+              if game_id in games:
+                  print(
+                      "Already stored, preserving:",
+                      game_id,
                   )
-                  is not None
-                  and
-                  existing.get(
-                      "home_ml"
-                  )
-                  is not None
-              ):
-
                   continue
 
-
-              competitors = (
-                  competition.get(
-                      "competitors",
-                      [],
-                  )
+              competitors = competition.get(
+                  "competitors",
+                  [],
               )
-
 
               away = next(
                   (
@@ -617,7 +512,6 @@ jobs:
                   None,
               )
 
-
               home = next(
                   (
                       team
@@ -632,15 +526,8 @@ jobs:
                   None,
               )
 
-
-              if (
-                  not away
-                  or
-                  not home
-              ):
-
+              if not away or not home:
                   continue
-
 
               away_name = (
                   away
@@ -653,7 +540,6 @@ jobs:
                   )
               )
 
-
               home_name = (
                   home
                   .get(
@@ -665,15 +551,8 @@ jobs:
                   )
               )
 
-
-              if (
-                  not away_name
-                  or
-                  not home_name
-              ):
-
+              if not away_name or not home_name:
                   continue
-
 
               print()
               print(
@@ -683,39 +562,31 @@ jobs:
                   home_name,
               )
 
-
               closing = None
-              source_used = None
+              source = None
 
 
               #
               # PRIMARY:
-              # Odds Gap explicit Novig close.
+              # Odds Gap explicit close
               #
 
               if odds_gap_text:
-
                   closing = parse_odds_gap(
                       odds_gap_text,
                       away_name,
                       home_name,
                   )
 
-
                   if closing:
-
-                      source_used = (
-                          "Odds Gap Novig close"
-                      )
-
-                      print(
-                          "Found on Odds Gap."
+                      source = (
+                          "The Odds Gap Novig closing moneyline"
                       )
 
 
               #
               # FALLBACK:
-              # StatMuse consensus closing odds.
+              # StatMuse consensus closing odds
               #
 
               if (
@@ -723,43 +594,31 @@ jobs:
                   and
                   statmuse_text
               ):
-
                   closing = parse_statmuse(
                       statmuse_text,
                       away_name,
                       home_name,
                   )
 
-
                   if closing:
-
-                      source_used = (
+                      source = (
                           "StatMuse consensus closing odds"
-                      )
-
-                      print(
-                          "Found on StatMuse."
                       )
 
 
               if closing is None:
-
                   print(
-                      "No verified closing line found."
+                      "No verified close found."
                   )
-
                   continue
 
 
-              away_ml, home_ml = (
-                  closing
-              )
+              away_ml, home_ml = closing
 
 
               games[
                   game_id
               ] = {
-
                   "event_id":
                       game_id,
 
@@ -776,8 +635,7 @@ jobs:
                       home_ml,
 
                   "source":
-                      source_used,
-
+                      source,
               }
 
 
@@ -785,16 +643,27 @@ jobs:
 
 
               print(
-                  "Saved:",
+                  "ADDED:",
+                  game_id,
                   away_ml,
                   home_ml,
-                  "from",
-                  source_used,
+                  source,
               )
 
 
-          if added:
+          new_text = json.dumps(
+              data,
+              sort_keys=True,
+          )
 
+
+          if new_text == original_text:
+              print()
+              print(
+                  "No additions. Existing JSON left untouched."
+              )
+
+          else:
               data[
                   "updated_at"
               ] = (
@@ -805,27 +674,26 @@ jobs:
                   .isoformat()
               )
 
-
-          OUT.write_text(
-              json.dumps(
-                  data,
-                  indent=2,
-                  sort_keys=True,
+              OUT.write_text(
+                  json.dumps(
+                      data,
+                      indent=2,
+                      sort_keys=True,
+                  )
+                  +
+                  "\n"
               )
-              +
-              "\n"
-          )
 
-
-          print()
-          print(
-              "New closing lines:",
-              added,
-          )
+              print()
+              print(
+                  "Added",
+                  added,
+                  "new games."
+              )
 
 
           print(
-              "Total stored games:",
+              "Total games stored:",
               len(
                   games
               ),
@@ -834,27 +702,21 @@ jobs:
           PY
 
 
-      - name: Commit updated JSON
+      - name: Commit only if JSON changed
         shell: bash
         run: |
-
           if [ -z "$(git status --porcelain -- closing-lines.json)" ]; then
-
-            echo "No closing-line changes."
-
+            echo "No JSON changes to commit."
             exit 0
-
           fi
-
 
           git config user.name "github-actions[bot]"
 
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
 
-
           git add closing-lines.json
 
-          git commit -m "Update NFL closing lines"
+          git commit -m "Append NFL closing lines"
 
           git push
