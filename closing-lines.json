@@ -1,0 +1,86 @@
+{
+  "games": {
+    "401873011": {
+      "away": "Pittsburgh Steelers",
+      "away_ml": -150,
+      "date": "2026-10-25",
+      "event_id": "401873011",
+      "home": "New Orleans Saints",
+      "home_ml": 147,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873012": {
+      "away": "Cincinnati Bengals",
+      "away_ml": -153,
+      "date": "2026-10-25",
+      "event_id": "401873012",
+      "home": "Baltimore Ravens",
+      "home_ml": 150,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873013": {
+      "away": "Cleveland Browns",
+      "away_ml": -120,
+      "date": "2026-10-25",
+      "event_id": "401873013",
+      "home": "Tennessee Titans",
+      "home_ml": 117,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873014": {
+      "away": "Indianapolis Colts",
+      "away_ml": 285,
+      "date": "2026-10-25",
+      "event_id": "401873014",
+      "home": "Minnesota Vikings",
+      "home_ml": -292,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873015": {
+      "away": "Miami Dolphins",
+      "away_ml": 178,
+      "date": "2026-10-25",
+      "event_id": "401873015",
+      "home": "New York Jets",
+      "home_ml": -186,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873016": {
+      "away": "New York Giants",
+      "away_ml": 400,
+      "date": "2026-10-25",
+      "event_id": "401873016",
+      "home": "Houston Texans",
+      "home_ml": -413,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873017": {
+      "away": "San Francisco 49ers",
+      "away_ml": -135,
+      "date": "2026-10-25",
+      "event_id": "401873017",
+      "home": "Atlanta Falcons",
+      "home_ml": 133,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873018": {
+      "away": "Tampa Bay Buccaneers",
+      "away_ml": 147,
+      "date": "2026-10-25",
+      "event_id": "401873018",
+      "home": "Carolina Panthers",
+      "home_ml": -150,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873019": {
+      "away": "Denver Broncos",
+      "away_ml": -208,
+      "date": "2026-10-25",
+      "event_id": "401873019",
+      "home": "Arizona Cardinals",
+      "home_ml": 203,
+      "source": "The Odds Gap Novig closing moneyline"
+    }
+  },
+  "updated_at": "2026-10-25T20:40:39.622429+00:00"
+}
