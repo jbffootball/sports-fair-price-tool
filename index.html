@@ -106,17 +106,17 @@ button.active{
 
 .scoreValue{
   text-align:center;
-  font-size:38px;
+  font-size:40px;
   font-weight:950;
   margin:5px 0 12px;
 }
 
 input[type="range"]{
   width:100%;
-  margin:10px 0 4px;
+  margin:10px 0 5px;
 }
 
-.rangeEnds{
+.rangeMarks{
   display:flex;
   justify-content:space-between;
   color:var(--muted);
@@ -125,7 +125,7 @@ input[type="range"]{
 
 .result{
   margin-top:18px;
-  padding:22px 12px;
+  padding:23px 12px;
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:14px;
@@ -141,17 +141,17 @@ input[type="range"]{
 }
 
 .price{
-  font-size:56px;
+  font-size:58px;
   line-height:1.05;
   font-weight:950;
   margin-top:8px;
 }
 
-.estimate{
-  font-size:11px;
+.note{
+  margin-top:8px;
+  min-height:15px;
   color:var(--muted);
-  margin-top:7px;
-  min-height:14px;
+  font-size:11px;
 }
 
 @media(min-width:560px){
@@ -173,9 +173,13 @@ Break-even YES prices include a 1.5% fee.
 </div>
 
 
-<div class="label">Sport</div>
+<div class="label">
+Sport
+</div>
 
-<div class="grid sports" id="sportButtons">
+<div
+  class="grid sports"
+  id="sportButtons">
 
 <button
   type="button"
@@ -211,10 +215,30 @@ Quarter
   class="grid quarters"
   id="quarterButtons">
 
-<button type="button" data-quarter="Q1" class="active">Q1</button>
-<button type="button" data-quarter="Q2">Q2</button>
-<button type="button" data-quarter="Q3">Q3</button>
-<button type="button" data-quarter="Q4">Q4</button>
+<button
+  type="button"
+  data-quarter="Q1"
+  class="active">
+Q1
+</button>
+
+<button
+  type="button"
+  data-quarter="Q2">
+Q2
+</button>
+
+<button
+  type="button"
+  data-quarter="Q3">
+Q3
+</button>
+
+<button
+  type="button"
+  data-quarter="Q4">
+Q4
+</button>
 
 </div>
 
@@ -228,7 +252,7 @@ Favorite score differential
 <div
   class="scoreValue"
   id="scoreValue">
-+1
+0
 </div>
 
 <input
@@ -237,11 +261,13 @@ Favorite score differential
   min="-3"
   max="12"
   step="1"
-  value="1">
+  value="0">
 
-<div class="rangeEnds">
+<div class="rangeMarks">
 <span>-3</span>
 <span>0</span>
+<span>+3</span>
+<span>+7</span>
 <span>+12</span>
 </div>
 
@@ -261,8 +287,8 @@ Break-even YES price
 </div>
 
 <div
-  class="estimate"
-  id="estimate">
+  class="note"
+  id="note">
 </div>
 
 </div>
@@ -273,20 +299,20 @@ Break-even YES price
 <script>
 
 /*
-==================================================
-HISTORICAL FAIR-PRICE ANCHORS
+====================================================
+VALIDATED HISTORICAL ANCHORS
+====================================================
 
-The slider does NOT jump between these buckets.
+These are NOT steps in the live tool.
 
-Instead, these historical values are used as
-anchor points for a smooth monotonic curve.
+They are anchor values used to build a smooth
+fair-price curve.
 
-All prices already include the 1.5% fee.
-==================================================
+All values already include the 1.5% fee.
 */
 
 
-const NFL = {
+const NFL={
 
 "50–64%":{
   "Q1":[60,71,82],
@@ -319,15 +345,7 @@ const NFL = {
 };
 
 
-/*
-College anchor order:
-
-anchor 1 = lead 1–3
-anchor 2 = lead 4–7
-anchor 3 = lead 8–14
-*/
-
-const CFB = {
+const CFB={
 
 "50–69%":{
   "Q1":[69.0,79.0,86.4],
@@ -360,9 +378,16 @@ const CFB = {
 };
 
 
-const CONFIG = {
+/*
+====================================================
+SPORT CONFIGURATION
+====================================================
+*/
+
+const CONFIG={
 
 nfl:{
+
   probabilities:[
     "50–64%",
     "65–74%",
@@ -371,21 +396,23 @@ nfl:{
   ],
 
   /*
-  Approximate centers of historical NFL
-  lead groups:
+  Historical lead-group centers:
 
-  1–3  -> 2
-  4–7  -> 5.5
-  8+   -> 10
-
-  10 is used as the practical center of the
-  8+ region for our -3 through +12 slider.
+  1–3  = 2
+  4–7  = 5.5
+  8+   = approximately 10
   */
 
-  x:[2,5.5,10]
+  x:[
+    2,
+    5.5,
+    10
+  ]
+
 },
 
 cfb:{
+
   probabilities:[
     "50–69%",
     "70–84%",
@@ -394,39 +421,57 @@ cfb:{
   ],
 
   /*
-  College group centers:
+  Historical lead-group centers:
 
-  1–3   -> 2
-  4–7   -> 5.5
-  8–14  -> 11
+  1–3   = 2
+  4–7   = 5.5
+  8–14  = 11
   */
 
-  x:[2,5.5,11]
+  x:[
+    2,
+    5.5,
+    11
+  ]
+
 }
 
 };
 
 
 let sport="nfl";
+
 let probability="50–64%";
+
 let quarter="Q1";
-let score=1;
+
+let score=0;
 
 
 const probButtons=
-  document.getElementById("probButtons");
+  document.getElementById(
+    "probButtons"
+  );
 
 const scoreSlider=
-  document.getElementById("scoreSlider");
+  document.getElementById(
+    "scoreSlider"
+  );
 
 const scoreValue=
-  document.getElementById("scoreValue");
+  document.getElementById(
+    "scoreValue"
+  );
 
 const price=
-  document.getElementById("price");
+  document.getElementById(
+    "price"
+  );
 
-const estimate=
-  document.getElementById("estimate");
+const note=
+  document.getElementById(
+    "note"
+  );
 
 
 function formatScore(value){
@@ -452,32 +497,48 @@ function formatPrice(value){
     );
 
   const rounded=
-    Math.round(value*10)/10;
+    Math.round(
+      value*10
+    )/10;
 
-  if(Number.isInteger(rounded)){
-    return rounded.toFixed(0)+"¢";
+  if(
+    Number.isInteger(
+      rounded
+    )
+  ){
+
+    return
+      rounded.toFixed(0)
+      +"¢";
+
   }
 
-  return rounded.toFixed(1)+"¢";
+  return
+    rounded.toFixed(1)
+    +"¢";
 
 }
 
 
 /*
-==================================================
-MONOTONE CUBIC INTERPOLATION
+====================================================
+SMOOTH MONOTONIC CURVE
+====================================================
 
-This creates a curved transition instead of
-straight bucket jumps.
+Uses monotonic cubic Hermite interpolation.
 
-It is based on a monotone cubic Hermite curve,
-which prevents the fitted price from oscillating
-wildly between historical anchor points.
-==================================================
+This allows the price to move smoothly between
+historical lead-group anchors without creating
+sharp bucket jumps.
 */
 
 
-function endpointSlope(h0,h1,d0,d1){
+function endpointSlope(
+  h0,
+  h1,
+  d0,
+  d1
+){
 
   let m=
     (
@@ -488,38 +549,62 @@ function endpointSlope(h0,h1,d0,d1){
     /
     (h0+h1);
 
+
   if(
-    Math.sign(m)!==
+    Math.sign(m)
+    !==
     Math.sign(d0)
   ){
+
     m=0;
+
   }
 
+
   else if(
-    Math.sign(d0)!==
+    Math.sign(d0)
+    !==
     Math.sign(d1)
     &&
-    Math.abs(m)>
-    Math.abs(3*d0)
+    Math.abs(m)
+    >
+    Math.abs(
+      3*d0
+    )
   ){
-    m=3*d0;
+
+    m=
+      3*d0;
+
   }
+
 
   return m;
 
 }
 
 
-function middleSlope(h0,h1,d0,d1){
+function middleSlope(
+  h0,
+  h1,
+  d0,
+  d1
+){
 
   if(
-    d0===0 ||
-    d1===0 ||
-    Math.sign(d0)!==
+    d0===0
+    ||
+    d1===0
+    ||
+    Math.sign(d0)
+    !==
     Math.sign(d1)
   ){
+
     return 0;
+
   }
+
 
   const w1=
     2*h1+h0;
@@ -527,14 +612,16 @@ function middleSlope(h0,h1,d0,d1){
   const w2=
     h1+2*h0;
 
-  return
+
+  return (
     (w1+w2)
     /
     (
       w1/d0
       +
       w2/d1
-    );
+    )
+  );
 
 }
 
@@ -561,17 +648,34 @@ function hermite(
   const t3=
     t2*t;
 
+
   const h00=
-    2*t3-3*t2+1;
+    2*t3
+    -
+    3*t2
+    +
+    1;
+
 
   const h10=
-    t3-2*t2+t;
+    t3
+    -
+    2*t2
+    +
+    t;
+
 
   const h01=
-    -2*t3+3*t2;
+    -2*t3
+    +
+    3*t2;
+
 
   const h11=
-    t3-t2;
+    t3
+    -
+    t2;
+
 
   return (
     h00*y0
@@ -586,6 +690,13 @@ function hermite(
 }
 
 
+/*
+====================================================
+FAIR-PRICE CURVE
+====================================================
+*/
+
+
 function smoothFairPrice(
   score,
   anchors,
@@ -593,31 +704,37 @@ function smoothFairPrice(
 ){
 
   /*
-  Force historical anchors to be non-decreasing.
+  Force lead values to be non-decreasing.
 
-  This removes tiny sample-driven reversals,
-  such as 94 -> 93, that do not make football
-  sense as the favorite's lead increases.
+  A larger lead should not produce a lower
+  fair value solely because of sample noise.
   */
 
-  let y0=anchors[0];
+  const y0=
+    anchors[0];
 
-  let y1=
+  const y1=
     Math.max(
       anchors[1],
       y0
     );
 
-  let y2=
+  const y2=
     Math.max(
       anchors[2],
       y1
     );
 
 
-  const x0=xs[0];
-  const x1=xs[1];
-  const x2=xs[2];
+  const x0=
+    xs[0];
+
+  const x1=
+    xs[1];
+
+  const x2=
+    xs[2];
+
 
   const h0=
     x1-x0;
@@ -625,20 +742,27 @@ function smoothFairPrice(
   const h1=
     x2-x1;
 
+
   const d0=
-    (y1-y0)/h0;
+    (y1-y0)
+    /
+    h0;
+
 
   const d1=
-    (y2-y1)/h1;
+    (y2-y1)
+    /
+    h1;
 
 
-  let m0=
+  const m0=
     endpointSlope(
       h0,
       h1,
       d0,
       d1
     );
+
 
   const m1=
     middleSlope(
@@ -648,7 +772,8 @@ function smoothFairPrice(
       d1
     );
 
-  let m2=
+
+  const m2=
     endpointSlope(
       h1,
       h0,
@@ -658,35 +783,49 @@ function smoothFairPrice(
 
 
   /*
-  Conservative extrapolation outside the
-  historical anchor range.
+  ================================================
+  LOSING / TIED SIDE
 
-  Trailing/tied values use only 65% of the
-  fitted left-hand slope.
+  Scores below +2 are extrapolated backward
+  from the fitted curve.
 
-  Above the final anchor we use only 35%
-  of the final slope.
+  The slope is damped to 70% to prevent sparse
+  positive-lead data from causing an unrealistic
+  collapse in fair value.
+  ================================================
   */
 
-  if(score<x0){
+  if(
+    score<x0
+  ){
 
-    const leftSlope=
+    const losingSlope=
       Math.max(
-        0,
-        m0*0.65
+        0.25,
+        m0*0.70
       );
+
 
     return (
       y0
       +
-      leftSlope*
-      (score-x0)
+      losingSlope
+      *
+      (
+        score-x0
+      )
     );
 
   }
 
 
-  if(score<=x1){
+  /*
+  +2 through middle anchor
+  */
+
+  if(
+    score<=x1
+  ){
 
     return hermite(
       score,
@@ -701,7 +840,13 @@ function smoothFairPrice(
   }
 
 
-  if(score<=x2){
+  /*
+  Middle anchor through high-lead anchor
+  */
+
+  if(
+    score<=x2
+  ){
 
     return hermite(
       score,
@@ -716,31 +861,51 @@ function smoothFairPrice(
   }
 
 
-  const rightSlope=
+  /*
+  Above highest historical anchor.
+
+  Slow the curve as probability approaches 100%.
+  */
+
+  const upperSlope=
     Math.max(
       0,
-      m2*0.35
+      m2*0.30
     );
+
 
   return (
     y2
     +
-    rightSlope*
-    (score-x2)
+    upperSlope
+    *
+    (
+      score-x2
+    )
   );
 
 }
 
 
+/*
+====================================================
+GET CURRENT HISTORICAL ANCHORS
+====================================================
+*/
+
+
 function currentAnchors(){
 
-  if(sport==="nfl"){
+  if(
+    sport==="nfl"
+  ){
 
     return NFL
       [probability]
       [quarter];
 
   }
+
 
   return CFB
     [probability]
@@ -749,13 +914,23 @@ function currentAnchors(){
 }
 
 
+/*
+====================================================
+GET FAIR PRICE
+====================================================
+*/
+
+
 function getFairPrice(){
 
   const anchors=
     currentAnchors();
 
   const xs=
-    CONFIG[sport].x;
+    CONFIG
+      [sport]
+      .x;
+
 
   return smoothFairPrice(
     score,
@@ -766,161 +941,271 @@ function getFairPrice(){
 }
 
 
+/*
+====================================================
+PREGAME PROBABILITY BUTTONS
+====================================================
+*/
+
+
 function renderProbabilityButtons(){
 
   probButtons.innerHTML="";
 
-  CONFIG[sport]
+
+  CONFIG
+    [sport]
     .probabilities
-    .forEach(p=>{
+    .forEach(
+      p=>{
 
-      const button=
-        document.createElement(
-          "button"
-        );
+        const button=
+          document.createElement(
+            "button"
+          );
 
-      button.type="button";
 
-      button.textContent=p;
+        button.type=
+          "button";
 
-      if(p===probability){
-        button.classList.add(
-          "active"
-        );
-      }
 
-      button.addEventListener(
-        "click",
-        ()=>{
+        button.textContent=
+          p;
 
-          probability=p;
 
-          renderProbabilityButtons();
+        if(
+          p===probability
+        ){
 
-          renderResult();
+          button
+            .classList
+            .add(
+              "active"
+            );
 
         }
-      );
 
-      probButtons.appendChild(
+
         button
-      );
+          .addEventListener(
+            "click",
+            ()=>{
 
-    });
+              probability=p;
+
+              renderProbabilityButtons();
+
+              renderResult();
+
+            }
+          );
+
+
+        probButtons
+          .appendChild(
+            button
+          );
+
+      }
+    );
 
 }
+
+
+/*
+====================================================
+DISPLAY RESULT
+====================================================
+*/
 
 
 function renderResult(){
 
   scoreValue.textContent=
-    formatScore(score);
+    formatScore(
+      score
+    );
 
-  const value=
+
+  const fair=
     getFairPrice();
 
+
   price.textContent=
-    formatPrice(value);
+    formatPrice(
+      fair
+    );
 
 
-  if(score<=0){
+  /*
+  We intentionally keep the screen clean.
 
-    estimate.textContent=
-      "Trend estimate";
+  Only tied/trailing values get a subtle note
+  because those states are extrapolated from
+  the fitted positive-lead curve.
+  */
+
+  if(
+    score<=0
+  ){
+
+    note.textContent=
+      "Interpolated trend estimate";
 
   }
+
   else{
 
-    estimate.textContent="";
+    note.textContent=
+      "";
 
   }
 
 }
+
+
+/*
+====================================================
+SPORT BUTTONS
+====================================================
+*/
 
 
 document
   .querySelectorAll(
     "#sportButtons button"
   )
-  .forEach(button=>{
+  .forEach(
+    button=>{
 
-    button.addEventListener(
-      "click",
-      ()=>{
+      button
+        .addEventListener(
+          "click",
+          ()=>{
 
-        sport=
-          button.dataset.sport;
+            sport=
+              button
+                .dataset
+                .sport;
 
-        document
-          .querySelectorAll(
-            "#sportButtons button"
-          )
-          .forEach(b=>
-            b.classList.toggle(
-              "active",
-              b===button
-            )
-          );
 
-        probability=
-          CONFIG[sport]
-          .probabilities[0];
+            document
+              .querySelectorAll(
+                "#sportButtons button"
+              )
+              .forEach(
+                b=>{
 
-        renderProbabilityButtons();
+                  b
+                    .classList
+                    .toggle(
+                      "active",
+                      b===button
+                    );
 
-        renderResult();
+                }
+              );
 
-      }
-    );
 
-  });
+            probability=
+              CONFIG
+                [sport]
+                .probabilities
+                [0];
+
+
+            renderProbabilityButtons();
+
+            renderResult();
+
+          }
+        );
+
+    }
+  );
+
+
+/*
+====================================================
+QUARTER BUTTONS
+====================================================
+*/
 
 
 document
   .querySelectorAll(
     "#quarterButtons button"
   )
-  .forEach(button=>{
+  .forEach(
+    button=>{
 
-    button.addEventListener(
-      "click",
-      ()=>{
+      button
+        .addEventListener(
+          "click",
+          ()=>{
 
-        quarter=
-          button.dataset.quarter;
-
-        document
-          .querySelectorAll(
-            "#quarterButtons button"
-          )
-          .forEach(b=>
-            b.classList.toggle(
-              "active",
-              b===button
-            )
-          );
-
-        renderResult();
-
-      }
-    );
-
-  });
+            quarter=
+              button
+                .dataset
+                .quarter;
 
 
-scoreSlider.addEventListener(
-  "input",
-  ()=>{
+            document
+              .querySelectorAll(
+                "#quarterButtons button"
+              )
+              .forEach(
+                b=>{
 
-    score=
-      Number(
-        scoreSlider.value
-      );
+                  b
+                    .classList
+                    .toggle(
+                      "active",
+                      b===button
+                    );
 
-    renderResult();
+                }
+              );
 
-  }
-);
+
+            renderResult();
+
+          }
+        );
+
+    }
+  );
+
+
+/*
+====================================================
+SCORE SLIDER
+====================================================
+*/
+
+
+scoreSlider
+  .addEventListener(
+    "input",
+    ()=>{
+
+      score=
+        Number(
+          scoreSlider.value
+        );
+
+
+      renderResult();
+
+    }
+  );
+
+
+/*
+====================================================
+START
+====================================================
+*/
 
 
 renderProbabilityButtons();
