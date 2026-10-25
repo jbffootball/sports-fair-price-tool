@@ -1,708 +1,86 @@
-name: Update NFL Closing Lines
-
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "*/5 13-23 * * 0"
-    - cron: "*/5 22-23 * * 1,4"
-
-permissions:
-  contents: write
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 30
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Repair and append NFL closing lines
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          import re
-          import subprocess
-          import urllib.request
-          from datetime import datetime, timezone
-          from pathlib import Path
-          from zoneinfo import ZoneInfo
-
-          OUT = Path("closing-lines.json")
-
-          ESPN = (
-              "https://site.api.espn.com/apis/site/v2/"
-              "sports/football/nfl/scoreboard"
-          )
-
-          STATMUSE = (
-              "https://r.jina.ai/http://www.statmuse.com/"
-              "nfl/ask/nfl-moneylines"
-          )
-
-
-          def valid_data(text):
-              if not text or not text.strip():
-                  return None
-
-              try:
-                  data = json.loads(text)
-              except Exception:
-                  return None
-
-              if not isinstance(data, dict):
-                  return None
-
-              if not isinstance(
-                  data.get("games", {}),
-                  dict,
-              ):
-                  return None
-
-              return data
-
-
-          def recover_existing():
-
-              # First try the current file.
-              if OUT.exists():
-                  current = valid_data(
-                      OUT.read_text(
-                          errors="replace"
-                      )
-                  )
-
-                  if current is not None:
-                      print(
-                          "Current closing-lines.json is valid."
-                      )
-                      return current
-
-
-              print(
-                  "Current closing-lines.json is invalid or empty."
-              )
-
-              print(
-                  "Searching Git history for last valid copy..."
-              )
-
-
-              result = subprocess.run(
-                  [
-                      "git",
-                      "log",
-                      "--format=%H",
-                      "--",
-                      "closing-lines.json",
-                  ],
-                  capture_output=True,
-                  text=True,
-                  check=True,
-              )
-
-
-              commits = [
-                  line.strip()
-                  for line
-                  in result.stdout.splitlines()
-                  if line.strip()
-              ]
-
-
-              for commit in commits:
-
-                  show = subprocess.run(
-                      [
-                          "git",
-                          "show",
-                          f"{commit}:closing-lines.json",
-                      ],
-                      capture_output=True,
-                      text=True,
-                  )
-
-                  if show.returncode != 0:
-                      continue
-
-
-                  recovered = valid_data(
-                      show.stdout
-                  )
-
-
-                  if (
-                      recovered is not None
-                      and
-                      len(
-                          recovered.get(
-                              "games",
-                              {},
-                          )
-                      ) > 0
-                  ):
-
-                      print(
-                          "Recovered valid closing-lines.json from",
-                          commit,
-                      )
-
-                      print(
-                          "Recovered games:",
-                          len(
-                              recovered[
-                                  "games"
-                              ]
-                          ),
-                      )
-
-                      return recovered
-
-
-              print(
-                  "No valid historical copy found."
-              )
-
-              return {
-                  "updated_at": None,
-                  "games": {},
-              }
-
-
-          def fetch_text(url):
-
-              request = urllib.request.Request(
-                  url,
-                  headers={
-                      "User-Agent":
-                          "Mozilla/5.0",
-                      "Accept":
-                          "application/json,text/plain,text/html,*/*",
-                  },
-              )
-
-              with urllib.request.urlopen(
-                  request,
-                  timeout=30,
-              ) as response:
-
-                  return response.read().decode(
-                      "utf-8",
-                      errors="replace",
-                  )
-
-
-          def fetch_json(url):
-
-              text = fetch_text(
-                  url
-              )
-
-              if not text.strip():
-                  raise RuntimeError(
-                      "Empty response: "
-                      +
-                      url
-                  )
-
-              return json.loads(
-                  text
-              )
-
-
-          def clean(text):
-
-              text = (
-                  text
-                  .replace("−", "-")
-                  .replace("–", "-")
-                  .replace("—", "-")
-              )
-
-              text = re.sub(
-                  r"【\d+†([^】]+)】",
-                  r"\1",
-                  text,
-              )
-
-              return text
-
-
-          def parse_statmuse(
-              text,
-              away_name,
-              home_name,
-          ):
-
-              text = clean(
-                  text
-              )
-
-              away = re.escape(
-                  away_name
-              )
-
-              home = re.escape(
-                  home_name
-              )
-
-
-              # Away listed first.
-              pattern = re.compile(
-                  away
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)"
-                  +
-                  r"[\s|]+"
-                  r"(?:@|vs\.?)"
-                  +
-                  r"[\s|]+"
-                  +
-                  home
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)",
-                  flags=re.I,
-              )
-
-              match = pattern.search(
-                  text
-              )
-
-              if match:
-
-                  return (
-                      int(match.group(1)),
-                      int(match.group(2)),
-                  )
-
-
-              # Home listed first.
-              pattern = re.compile(
-                  home
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)"
-                  +
-                  r"[\s|]+"
-                  r"(?:@|vs\.?)"
-                  +
-                  r"[\s|]+"
-                  +
-                  away
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)",
-                  flags=re.I,
-              )
-
-              match = pattern.search(
-                  text
-              )
-
-              if match:
-
-                  return (
-                      int(match.group(2)),
-                      int(match.group(1)),
-                  )
-
-
-              return None
-
-
-          # ---------------------------------
-          # RECOVER EXISTING SAVED LINES
-          # ---------------------------------
-
-          data = recover_existing()
-
-          games = data.setdefault(
-              "games",
-              {},
-          )
-
-          original_games = json.dumps(
-              games,
-              sort_keys=True,
-          )
-
-
-          # ---------------------------------
-          # ESPN TODAY
-          # ---------------------------------
-
-          now_et = datetime.now(
-              ZoneInfo(
-                  "America/New_York"
-              )
-          )
-
-          today = now_et.strftime(
-              "%Y%m%d"
-          )
-
-          scoreboard = fetch_json(
-              ESPN
-              +
-              "?limit=100&dates="
-              +
-              today
-          )
-
-
-          print(
-              "ESPN games found:",
-              len(
-                  scoreboard.get(
-                      "events",
-                      [],
-                  )
-              ),
-          )
-
-
-          # ---------------------------------
-          # STATMUSE
-          # ---------------------------------
-
-          try:
-
-              statmuse_text = fetch_text(
-                  STATMUSE
-              )
-
-              print(
-                  "StatMuse loaded:",
-                  len(
-                      statmuse_text
-                  ),
-                  "characters",
-              )
-
-          except Exception as exc:
-
-              statmuse_text = ""
-
-              print(
-                  "StatMuse failed:",
-                  exc,
-              )
-
-
-          added = 0
-
-
-          # ---------------------------------
-          # APPEND ONLY
-          # ---------------------------------
-
-          for event in scoreboard.get(
-              "events",
-              [],
-          ):
-
-              competitions = (
-                  event.get(
-                      "competitions"
-                  )
-                  or
-                  []
-              )
-
-              if not competitions:
-                  continue
-
-
-              competition = competitions[
-                  0
-              ]
-
-
-              state = (
-                  competition
-                  .get(
-                      "status",
-                      {},
-                  )
-                  .get(
-                      "type",
-                      {},
-                  )
-                  .get(
-                      "state"
-                  )
-              )
-
-
-              if state not in (
-                  "in",
-                  "post",
-              ):
-                  continue
-
-
-              game_id = str(
-                  event.get(
-                      "id"
-                  )
-              )
-
-
-              # Never overwrite an existing game.
-              if game_id in games:
-
-                  print(
-                      "Preserving:",
-                      game_id
-                  )
-
-                  continue
-
-
-              competitors = competition.get(
-                  "competitors",
-                  [],
-              )
-
-
-              away = next(
-                  (
-                      team
-                      for team
-                      in competitors
-                      if team.get(
-                          "homeAway"
-                      )
-                      ==
-                      "away"
-                  ),
-                  None,
-              )
-
-
-              home = next(
-                  (
-                      team
-                      for team
-                      in competitors
-                      if team.get(
-                          "homeAway"
-                      )
-                      ==
-                      "home"
-                  ),
-                  None,
-              )
-
-
-              if not away or not home:
-                  continue
-
-
-              away_name = (
-                  away
-                  .get(
-                      "team",
-                      {},
-                  )
-                  .get(
-                      "displayName"
-                  )
-              )
-
-
-              home_name = (
-                  home
-                  .get(
-                      "team",
-                      {},
-                  )
-                  .get(
-                      "displayName"
-                  )
-              )
-
-
-              print()
-              print(
-                  "Checking:",
-                  away_name,
-                  "at",
-                  home_name,
-              )
-
-
-              closing = None
-
-
-              if statmuse_text:
-
-                  closing = parse_statmuse(
-                      statmuse_text,
-                      away_name,
-                      home_name,
-                  )
-
-
-              if closing is None:
-
-                  print(
-                      "No matching closing line."
-                  )
-
-                  continue
-
-
-              away_ml, home_ml = closing
-
-
-              games[
-                  game_id
-              ] = {
-                  "event_id":
-                      game_id,
-
-                  "away":
-                      away_name,
-
-                  "home":
-                      home_name,
-
-                  "away_ml":
-                      away_ml,
-
-                  "home_ml":
-                      home_ml,
-
-                  "source":
-                      "StatMuse closing odds",
-              }
-
-
-              added += 1
-
-
-              print(
-                  "ADDED:",
-                  away_name,
-                  away_ml,
-                  "/",
-                  home_name,
-                  home_ml,
-              )
-
-
-          # ---------------------------------
-          # WRITE VALID JSON
-          # ---------------------------------
-
-          new_games = json.dumps(
-              games,
-              sort_keys=True,
-          )
-
-
-          # Write if we recovered a broken file
-          # OR added games.
-          current_valid = None
-
-          if OUT.exists():
-              current_valid = valid_data(
-                  OUT.read_text(
-                      errors="replace"
-                  )
-              )
-
-
-          needs_repair = (
-              current_valid is None
-          )
-
-
-          if (
-              new_games
-              !=
-              original_games
-              or
-              needs_repair
-          ):
-
-              data[
-                  "updated_at"
-              ] = (
-                  datetime
-                  .now(
-                      timezone.utc
-                  )
-                  .isoformat()
-              )
-
-
-              OUT.write_text(
-                  json.dumps(
-                      data,
-                      indent=2,
-                      sort_keys=True,
-                  )
-                  +
-                  "\n"
-              )
-
-
-              print()
-              print(
-                  "closing-lines.json repaired/saved."
-              )
-
-
-          else:
-
-              print()
-              print(
-                  "No changes required."
-              )
-
-
-          print(
-              "Added this run:",
-              added,
-          )
-
-          print(
-              "Total stored games:",
-              len(
-                  games
-              ),
-          )
-
-          PY
-
-
-      - name: Commit only if JSON changed
-        shell: bash
-        run: |
-          if [ -z "$(git status --porcelain -- closing-lines.json)" ]; then
-            echo "No JSON changes."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-
-          git config user.email \
-            "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add closing-lines.json
-
-          git commit -m "Repair and append NFL closing lines"
-
-          git push
+{
+  "games": {
+    "401873011": {
+      "away": "Pittsburgh Steelers",
+      "away_ml": -150,
+      "date": "2026-10-25",
+      "event_id": "401873011",
+      "home": "New Orleans Saints",
+      "home_ml": 147,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873012": {
+      "away": "Cincinnati Bengals",
+      "away_ml": -153,
+      "date": "2026-10-25",
+      "event_id": "401873012",
+      "home": "Baltimore Ravens",
+      "home_ml": 150,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873013": {
+      "away": "Cleveland Browns",
+      "away_ml": -120,
+      "date": "2026-10-25",
+      "event_id": "401873013",
+      "home": "Tennessee Titans",
+      "home_ml": 117,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873014": {
+      "away": "Indianapolis Colts",
+      "away_ml": 285,
+      "date": "2026-10-25",
+      "event_id": "401873014",
+      "home": "Minnesota Vikings",
+      "home_ml": -292,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873015": {
+      "away": "Miami Dolphins",
+      "away_ml": 178,
+      "date": "2026-10-25",
+      "event_id": "401873015",
+      "home": "New York Jets",
+      "home_ml": -186,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873016": {
+      "away": "New York Giants",
+      "away_ml": 400,
+      "date": "2026-10-25",
+      "event_id": "401873016",
+      "home": "Houston Texans",
+      "home_ml": -413,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873017": {
+      "away": "San Francisco 49ers",
+      "away_ml": -135,
+      "date": "2026-10-25",
+      "event_id": "401873017",
+      "home": "Atlanta Falcons",
+      "home_ml": 133,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873018": {
+      "away": "Tampa Bay Buccaneers",
+      "away_ml": 147,
+      "date": "2026-10-25",
+      "event_id": "401873018",
+      "home": "Carolina Panthers",
+      "home_ml": -150,
+      "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873019": {
+      "away": "Denver Broncos",
+      "away_ml": -208,
+      "date": "2026-10-25",
+      "event_id": "401873019",
+      "home": "Arizona Cardinals",
+      "home_ml": 203,
+      "source": "The Odds Gap Novig closing moneyline"
+    }
+  },
+  "updated_at": "2026-10-25T21:57:42.615088+00:00"
+}
