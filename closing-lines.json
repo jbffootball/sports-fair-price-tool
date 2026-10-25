@@ -16,22 +16,27 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Append verified NFL closing lines
+      - name: Repair and append NFL closing lines
         shell: bash
         run: |
           python - <<'PY'
           import json
           import re
+          import subprocess
           import urllib.request
           from datetime import datetime, timezone
           from pathlib import Path
           from zoneinfo import ZoneInfo
+
+          OUT = Path("closing-lines.json")
 
           ESPN = (
               "https://site.api.espn.com/apis/site/v2/"
@@ -43,11 +48,138 @@ jobs:
               "nfl/ask/nfl-moneylines"
           )
 
-          OUT = Path("closing-lines.json")
+
+          def valid_data(text):
+              if not text or not text.strip():
+                  return None
+
+              try:
+                  data = json.loads(text)
+              except Exception:
+                  return None
+
+              if not isinstance(data, dict):
+                  return None
+
+              if not isinstance(
+                  data.get("games", {}),
+                  dict,
+              ):
+                  return None
+
+              return data
+
+
+          def recover_existing():
+
+              # First try the current file.
+              if OUT.exists():
+                  current = valid_data(
+                      OUT.read_text(
+                          errors="replace"
+                      )
+                  )
+
+                  if current is not None:
+                      print(
+                          "Current closing-lines.json is valid."
+                      )
+                      return current
+
+
+              print(
+                  "Current closing-lines.json is invalid or empty."
+              )
+
+              print(
+                  "Searching Git history for last valid copy..."
+              )
+
+
+              result = subprocess.run(
+                  [
+                      "git",
+                      "log",
+                      "--format=%H",
+                      "--",
+                      "closing-lines.json",
+                  ],
+                  capture_output=True,
+                  text=True,
+                  check=True,
+              )
+
+
+              commits = [
+                  line.strip()
+                  for line
+                  in result.stdout.splitlines()
+                  if line.strip()
+              ]
+
+
+              for commit in commits:
+
+                  show = subprocess.run(
+                      [
+                          "git",
+                          "show",
+                          f"{commit}:closing-lines.json",
+                      ],
+                      capture_output=True,
+                      text=True,
+                  )
+
+                  if show.returncode != 0:
+                      continue
+
+
+                  recovered = valid_data(
+                      show.stdout
+                  )
+
+
+                  if (
+                      recovered is not None
+                      and
+                      len(
+                          recovered.get(
+                              "games",
+                              {},
+                          )
+                      ) > 0
+                  ):
+
+                      print(
+                          "Recovered valid closing-lines.json from",
+                          commit,
+                      )
+
+                      print(
+                          "Recovered games:",
+                          len(
+                              recovered[
+                                  "games"
+                              ]
+                          ),
+                      )
+
+                      return recovered
+
+
+              print(
+                  "No valid historical copy found."
+              )
+
+              return {
+                  "updated_at": None,
+                  "games": {},
+              }
 
 
           def fetch_text(url):
-              req = urllib.request.Request(
+
+              request = urllib.request.Request(
                   url,
                   headers={
                       "User-Agent":
@@ -58,7 +190,7 @@ jobs:
               )
 
               with urllib.request.urlopen(
-                  req,
+                  request,
                   timeout=30,
               ) as response:
 
@@ -69,48 +201,39 @@ jobs:
 
 
           def fetch_json(url):
-              text = fetch_text(url)
+
+              text = fetch_text(
+                  url
+              )
 
               if not text.strip():
                   raise RuntimeError(
-                      "Empty response from: " + url
+                      "Empty response: "
+                      +
+                      url
                   )
 
-              try:
-                  return json.loads(text)
-
-              except Exception:
-                  print(
-                      "NON-JSON RESPONSE FROM:",
-                      url,
-                  )
-
-                  print(
-                      "FIRST 500 CHARACTERS:"
-                  )
-
-                  print(
-                      text[:500]
-                  )
-
-                  raise
+              return json.loads(
+                  text
+              )
 
 
           def clean(text):
-              return (
+
+              text = (
                   text
                   .replace("−", "-")
                   .replace("–", "-")
                   .replace("—", "-")
               )
 
-
-          def strip_jina_links(text):
-              return re.sub(
+              text = re.sub(
                   r"【\d+†([^】]+)】",
                   r"\1",
                   text,
               )
+
+              return text
 
 
           def parse_statmuse(
@@ -118,8 +241,9 @@ jobs:
               away_name,
               home_name,
           ):
+
               text = clean(
-                  strip_jina_links(text)
+                  text
               )
 
               away = re.escape(
@@ -130,10 +254,8 @@ jobs:
                   home_name
               )
 
-              #
-              # Away-team-first format
-              #
 
+              # Away listed first.
               pattern = re.compile(
                   away
                   +
@@ -157,16 +279,14 @@ jobs:
               )
 
               if match:
+
                   return (
                       int(match.group(1)),
                       int(match.group(2)),
                   )
 
 
-              #
-              # Home-team-first format
-              #
-
+              # Home listed first.
               pattern = re.compile(
                   home
                   +
@@ -190,42 +310,26 @@ jobs:
               )
 
               if match:
+
                   return (
                       int(match.group(2)),
                       int(match.group(1)),
                   )
+
 
               return None
 
 
-          # -----------------------------------
-          # PRESERVE EXISTING CLOSING LINES
-          # -----------------------------------
+          # ---------------------------------
+          # RECOVER EXISTING SAVED LINES
+          # ---------------------------------
 
-          if OUT.exists():
-              try:
-                  data = json.loads(
-                      OUT.read_text()
-                  )
-
-              except Exception as exc:
-                  print(
-                      "Could not read existing closing-lines.json"
-                  )
-                  raise
-
-          else:
-              data = {
-                  "updated_at": None,
-                  "games": {},
-              }
-
+          data = recover_existing()
 
           games = data.setdefault(
               "games",
               {},
           )
-
 
           original_games = json.dumps(
               games,
@@ -233,9 +337,9 @@ jobs:
           )
 
 
-          # -----------------------------------
-          # ESPN LIVE GAME LIST
-          # -----------------------------------
+          # ---------------------------------
+          # ESPN TODAY
+          # ---------------------------------
 
           now_et = datetime.now(
               ZoneInfo(
@@ -247,7 +351,7 @@ jobs:
               "%Y%m%d"
           )
 
-          espn_url = (
+          scoreboard = fetch_json(
               ESPN
               +
               "?limit=100&dates="
@@ -257,50 +361,40 @@ jobs:
 
 
           print(
-              "Fetching ESPN:"
-          )
-
-          print(
-              espn_url
-          )
-
-
-          scoreboard = fetch_json(
-              espn_url
-          )
-
-
-          print(
-              "ESPN events:",
+              "ESPN games found:",
               len(
                   scoreboard.get(
                       "events",
                       [],
                   )
-              )
+              ),
           )
 
 
-          # -----------------------------------
+          # ---------------------------------
           # STATMUSE
-          # -----------------------------------
-
-          statmuse_text = ""
+          # ---------------------------------
 
           try:
+
               statmuse_text = fetch_text(
                   STATMUSE
               )
 
               print(
                   "StatMuse loaded:",
-                  len(statmuse_text),
-                  "characters"
+                  len(
+                      statmuse_text
+                  ),
+                  "characters",
               )
 
           except Exception as exc:
+
+              statmuse_text = ""
+
               print(
-                  "StatMuse fetch failed:",
+                  "StatMuse failed:",
                   exc,
               )
 
@@ -308,16 +402,16 @@ jobs:
           added = 0
 
 
-          # -----------------------------------
+          # ---------------------------------
           # APPEND ONLY
-          # -----------------------------------
+          # ---------------------------------
 
           for event in scoreboard.get(
               "events",
               [],
           ):
 
-              comps = (
+              competitions = (
                   event.get(
                       "competitions"
                   )
@@ -325,11 +419,13 @@ jobs:
                   []
               )
 
-              if not comps:
+              if not competitions:
                   continue
 
 
-              competition = comps[0]
+              competition = competitions[
+                  0
+              ]
 
 
               state = (
@@ -362,29 +458,29 @@ jobs:
               )
 
 
+              # Never overwrite an existing game.
               if game_id in games:
 
                   print(
-                      "Preserving existing:",
-                      game_id,
+                      "Preserving:",
+                      game_id
                   )
 
                   continue
 
 
-              competitors = (
-                  competition.get(
-                      "competitors",
-                      []
-                  )
+              competitors = competition.get(
+                  "competitors",
+                  [],
               )
 
 
               away = next(
                   (
-                      x
-                      for x in competitors
-                      if x.get(
+                      team
+                      for team
+                      in competitors
+                      if team.get(
                           "homeAway"
                       )
                       ==
@@ -396,9 +492,10 @@ jobs:
 
               home = next(
                   (
-                      x
-                      for x in competitors
-                      if x.get(
+                      team
+                      for team
+                      in competitors
+                      if team.get(
                           "homeAway"
                       )
                       ==
@@ -460,7 +557,7 @@ jobs:
               if closing is None:
 
                   print(
-                      "No verified closing line matched."
+                      "No matching closing line."
                   )
 
                   continue
@@ -472,7 +569,6 @@ jobs:
               games[
                   game_id
               ] = {
-
                   "event_id":
                       game_id,
 
@@ -490,7 +586,6 @@ jobs:
 
                   "source":
                       "StatMuse closing odds",
-
               }
 
 
@@ -507,9 +602,9 @@ jobs:
               )
 
 
-          # -----------------------------------
-          # SAVE ONLY IF GAMES CHANGED
-          # -----------------------------------
+          # ---------------------------------
+          # WRITE VALID JSON
+          # ---------------------------------
 
           new_games = json.dumps(
               games,
@@ -517,19 +612,30 @@ jobs:
           )
 
 
-          if new_games == original_games:
+          # Write if we recovered a broken file
+          # OR added games.
+          current_valid = None
 
-              print()
-              print(
-                  "No new games added."
+          if OUT.exists():
+              current_valid = valid_data(
+                  OUT.read_text(
+                      errors="replace"
+                  )
               )
 
-              print(
-                  "Existing JSON preserved unchanged."
-              )
+
+          needs_repair = (
+              current_valid is None
+          )
 
 
-          else:
+          if (
+              new_games
+              !=
+              original_games
+              or
+              needs_repair
+          ):
 
               data[
                   "updated_at"
@@ -555,15 +661,28 @@ jobs:
 
               print()
               print(
-                  "Added",
-                  added,
-                  "new game(s)."
+                  "closing-lines.json repaired/saved."
+              )
+
+
+          else:
+
+              print()
+              print(
+                  "No changes required."
               )
 
 
           print(
-              "Total stored:",
-              len(games)
+              "Added this run:",
+              added,
+          )
+
+          print(
+              "Total stored games:",
+              len(
+                  games
+              ),
           )
 
           PY
@@ -578,9 +697,12 @@ jobs:
           fi
 
           git config user.name "github-actions[bot]"
+
           git config user.email \
             "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add closing-lines.json
-          git commit -m "Append NFL closing lines"
+
+          git commit -m "Repair and append NFL closing lines"
+
           git push
