@@ -1,86 +1,727 @@
-{
-  "games": {
-    "401873011": {
-      "away": "Pittsburgh Steelers",
-      "away_ml": -150,
-      "date": "2026-10-25",
-      "event_id": "401873011",
-      "home": "New Orleans Saints",
-      "home_ml": 147,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873012": {
-      "away": "Cincinnati Bengals",
-      "away_ml": -153,
-      "date": "2026-10-25",
-      "event_id": "401873012",
-      "home": "Baltimore Ravens",
-      "home_ml": 150,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873013": {
-      "away": "Cleveland Browns",
-      "away_ml": -120,
-      "date": "2026-10-25",
-      "event_id": "401873013",
-      "home": "Tennessee Titans",
-      "home_ml": 117,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873014": {
-      "away": "Indianapolis Colts",
-      "away_ml": 285,
-      "date": "2026-10-25",
-      "event_id": "401873014",
-      "home": "Minnesota Vikings",
-      "home_ml": -292,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873015": {
-      "away": "Miami Dolphins",
-      "away_ml": 178,
-      "date": "2026-10-25",
-      "event_id": "401873015",
-      "home": "New York Jets",
-      "home_ml": -186,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873016": {
-      "away": "New York Giants",
-      "away_ml": 400,
-      "date": "2026-10-25",
-      "event_id": "401873016",
-      "home": "Houston Texans",
-      "home_ml": -413,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873017": {
-      "away": "San Francisco 49ers",
-      "away_ml": -135,
-      "date": "2026-10-25",
-      "event_id": "401873017",
-      "home": "Atlanta Falcons",
-      "home_ml": 133,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873018": {
-      "away": "Tampa Bay Buccaneers",
-      "away_ml": 147,
-      "date": "2026-10-25",
-      "event_id": "401873018",
-      "home": "Carolina Panthers",
-      "home_ml": -150,
-      "source": "The Odds Gap Novig closing moneyline"
-    },
-    "401873019": {
-      "away": "Denver Broncos",
-      "away_ml": -208,
-      "date": "2026-10-25",
-      "event_id": "401873019",
-      "home": "Arizona Cardinals",
-      "home_ml": 203,
-      "source": "The Odds Gap Novig closing moneyline"
-    }
-  },
-  "updated_at": "2026-10-25T20:40:39.622429+00:00"
-}
+name: Update NFL Closing Lines
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 13-23 * * 0"
+    - cron: "*/5 22-23 * * 1,4"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Append verified NFL closing lines
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          ESPN = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+
+          ODDS_GAP = (
+              "https://r.jina.ai/"
+              "https://theoddsgap.com/weeklyslate/nfl"
+          )
+
+          STATMUSE = (
+              "https://r.jina.ai/"
+              "https://www.statmuse.com/nfl/ask/nfl-moneylines"
+          )
+
+          OUT = Path("closing-lines.json")
+
+
+          def fetch_text(url):
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "User-Agent":
+                          "Mozilla/5.0 FootballFairPriceLookup/1.0"
+                  },
+              )
+
+              with urllib.request.urlopen(
+                  req,
+                  timeout=30,
+              ) as response:
+
+                  return response.read().decode(
+                      "utf-8",
+                      errors="replace",
+                  )
+
+
+          def fetch_json(url):
+              return json.loads(
+                  fetch_text(url)
+              )
+
+
+          def clean(text):
+              return (
+                  text
+                  .replace("−", "-")
+                  .replace("–", "-")
+                  .replace("—", "-")
+              )
+
+
+          def normalize_team(name):
+              return (
+                  name.lower()
+                  .replace("&", "and")
+                  .replace(".", "")
+                  .replace("'", "")
+                  .replace("-", " ")
+                  .replace("  ", " ")
+                  .strip()
+              )
+
+
+          def team_aliases(name):
+              n = normalize_team(name)
+
+              aliases = {
+                  "green bay packers": [
+                      "green bay packers",
+                      "green bay",
+                  ],
+                  "detroit lions": [
+                      "detroit lions",
+                      "detroit",
+                  ],
+                  "los angeles rams": [
+                      "los angeles rams",
+                      "la rams",
+                  ],
+                  "las vegas raiders": [
+                      "las vegas raiders",
+                      "raiders",
+                  ],
+                  "san francisco 49ers": [
+                      "san francisco 49ers",
+                      "san francisco",
+                  ],
+              }
+
+              return aliases.get(
+                  n,
+                  [n],
+              )
+
+
+          def matchup_matches(
+              row_away,
+              row_home,
+              away_name,
+              home_name,
+          ):
+              row_away = normalize_team(
+                  row_away
+              )
+
+              row_home = normalize_team(
+                  row_home
+              )
+
+              return (
+                  row_away
+                  in
+                  team_aliases(
+                      away_name
+                  )
+                  and
+                  row_home
+                  in
+                  team_aliases(
+                      home_name
+                  )
+              )
+
+
+          def parse_statmuse(
+              text,
+              away_name,
+              home_name,
+          ):
+              text = clean(text)
+
+              if not re.search(
+                  r"Consensus closing odds",
+                  text,
+                  flags=re.I,
+              ):
+                  return None
+
+              row_pattern = re.compile(
+                  r"\|\s*([^|\n]+?)\s*\|\s*"
+                  r"([+-]\d+)\s*\|\s*@\s*\|\s*"
+                  r"([^|\n]+?)\s*\|\s*"
+                  r"([+-]\d+)\s*\|",
+                  flags=re.I,
+              )
+
+              for match in row_pattern.finditer(
+                  text
+              ):
+                  row_away = match.group(1).strip()
+                  away_ml = int(match.group(2))
+
+                  row_home = match.group(3).strip()
+                  home_ml = int(match.group(4))
+
+                  if matchup_matches(
+                      row_away,
+                      row_home,
+                      away_name,
+                      home_name,
+                  ):
+                      return (
+                          away_ml,
+                          home_ml,
+                      )
+
+              return None
+
+
+          def parse_odds_gap(
+              text,
+              away_name,
+              home_name,
+          ):
+              text = clean(text)
+
+              escaped_away = re.escape(
+                  away_name
+              )
+
+              escaped_home = re.escape(
+                  home_name
+              )
+
+              heading = re.search(
+                  rf"^###\s+"
+                  rf"(?:\[\d+†)?"
+                  rf"{escaped_away}"
+                  rf"\s+at\s+"
+                  rf"{escaped_home}"
+                  rf"(?:\])?"
+                  rf"\s*$",
+                  text,
+                  flags=re.I | re.M,
+              )
+
+              if not heading:
+                  return None
+
+              after = text[
+                  heading.start():
+              ]
+
+              next_heading = re.search(
+                  r"\n###\s+",
+                  after[
+                      len(
+                          heading.group(0)
+                      ):
+                  ],
+              )
+
+              if next_heading:
+                  end = (
+                      len(
+                          heading.group(0)
+                      )
+                      +
+                      next_heading.start()
+                  )
+
+                  segment = after[:end]
+
+              else:
+                  segment = after
+
+              if not re.search(
+                  r"Moneyline\s+at\s+Close|"
+                  r"at\s+Close,\s+Best\s+to\s+Worst",
+                  segment,
+                  flags=re.I,
+              ):
+                  return None
+
+              def team_close(team_name):
+                  escaped = re.escape(
+                      team_name
+                  )
+
+                  header = re.search(
+                      rf"####\s+"
+                      rf"(?:\[\d+†)?"
+                      rf"{escaped}"
+                      rf"(?:\])?"
+                      rf"\s+"
+                      rf"(?:Moneyline\s+at\s+Close|"
+                      rf"at\s+Close,\s+Best\s+to\s+Worst)",
+                      segment,
+                      flags=re.I,
+                  )
+
+                  if not header:
+                      return None
+
+                  block = segment[
+                      header.end():
+                  ]
+
+                  next_section = re.search(
+                      r"\n####\s+",
+                      block,
+                  )
+
+                  if next_section:
+                      block = block[
+                          :next_section.start()
+                      ]
+
+                  match = re.search(
+                      r"(?:\|\s*)?"
+                      r"Novig"
+                      r"\s*(?:\|\s*|\s+)"
+                      r"([+-]\d+)",
+                      block,
+                      flags=re.I,
+                  )
+
+                  if not match:
+                      return None
+
+                  return int(
+                      match.group(1)
+                  )
+
+              away_ml = team_close(
+                  away_name
+              )
+
+              home_ml = team_close(
+                  home_name
+              )
+
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
+                  return None
+
+              return (
+                  away_ml,
+                  home_ml,
+              )
+
+
+          # -----------------------------
+          # LOAD EXISTING FILE
+          # -----------------------------
+
+          if OUT.exists():
+              try:
+                  data = json.loads(
+                      OUT.read_text()
+                  )
+              except Exception as exc:
+                  print(
+                      "Existing JSON could not be read:",
+                      exc,
+                  )
+                  raise
+          else:
+              data = {
+                  "updated_at": None,
+                  "games": {},
+              }
+
+
+          if "games" not in data:
+              data["games"] = {}
+
+
+          games = data["games"]
+
+
+          original_text = json.dumps(
+              data,
+              sort_keys=True,
+          )
+
+
+          # -----------------------------
+          # ESPN TODAY
+          # -----------------------------
+
+          now_et = datetime.now(
+              ZoneInfo(
+                  "America/New_York"
+              )
+          )
+
+          today = now_et.strftime(
+              "%Y%m%d"
+          )
+
+
+          scoreboard = fetch_json(
+              f"{ESPN}?limit=100&dates={today}"
+          )
+
+
+          # -----------------------------
+          # FETCH SOURCES ONCE
+          # -----------------------------
+
+          try:
+              odds_gap_text = fetch_text(
+                  ODDS_GAP
+              )
+
+              print(
+                  "Odds Gap loaded."
+              )
+
+          except Exception as exc:
+              odds_gap_text = ""
+
+              print(
+                  "Odds Gap failed:",
+                  exc,
+              )
+
+
+          try:
+              statmuse_text = fetch_text(
+                  STATMUSE
+              )
+
+              print(
+                  "StatMuse loaded."
+              )
+
+          except Exception as exc:
+              statmuse_text = ""
+
+              print(
+                  "StatMuse failed:",
+                  exc,
+              )
+
+
+          added = 0
+
+
+          # -----------------------------
+          # APPEND ONLY
+          # -----------------------------
+
+          for event in scoreboard.get(
+              "events",
+              [],
+          ):
+              competitions = (
+                  event.get(
+                      "competitions"
+                  )
+                  or
+                  []
+              )
+
+              if not competitions:
+                  continue
+
+              competition = competitions[0]
+
+              state = (
+                  competition
+                  .get(
+                      "status",
+                      {},
+                  )
+                  .get(
+                      "type",
+                      {},
+                  )
+                  .get(
+                      "state"
+                  )
+              )
+
+              # Never save before kickoff.
+              if state not in (
+                  "in",
+                  "post",
+              ):
+                  continue
+
+              game_id = str(
+                  event.get(
+                      "id"
+                  )
+              )
+
+              # Critical append-only rule:
+              # if the game already exists,
+              # leave it exactly as-is.
+              if game_id in games:
+                  print(
+                      "Already stored, preserving:",
+                      game_id,
+                  )
+                  continue
+
+              competitors = competition.get(
+                  "competitors",
+                  [],
+              )
+
+              away = next(
+                  (
+                      team
+                      for team
+                      in competitors
+                      if team.get(
+                          "homeAway"
+                      )
+                      ==
+                      "away"
+                  ),
+                  None,
+              )
+
+              home = next(
+                  (
+                      team
+                      for team
+                      in competitors
+                      if team.get(
+                          "homeAway"
+                      )
+                      ==
+                      "home"
+                  ),
+                  None,
+              )
+
+              if (
+                  not away
+                  or
+                  not home
+              ):
+                  continue
+
+              away_name = (
+                  away
+                  .get(
+                      "team",
+                      {},
+                  )
+                  .get(
+                      "displayName"
+                  )
+              )
+
+              home_name = (
+                  home
+                  .get(
+                      "team",
+                      {},
+                  )
+                  .get(
+                      "displayName"
+                  )
+              )
+
+              if (
+                  not away_name
+                  or
+                  not home_name
+              ):
+                  continue
+
+              print()
+              print(
+                  "Checking:",
+                  away_name,
+                  "at",
+                  home_name,
+              )
+
+              closing = None
+              source = None
+
+
+              # Primary
+              if odds_gap_text:
+                  closing = parse_odds_gap(
+                      odds_gap_text,
+                      away_name,
+                      home_name,
+                  )
+
+                  if closing:
+                      source = (
+                          "The Odds Gap Novig closing moneyline"
+                      )
+
+
+              # Fallback
+              if (
+                  closing is None
+                  and
+                  statmuse_text
+              ):
+                  closing = parse_statmuse(
+                      statmuse_text,
+                      away_name,
+                      home_name,
+                  )
+
+                  if closing:
+                      source = (
+                          "StatMuse consensus closing odds"
+                      )
+
+
+              if closing is None:
+                  print(
+                      "No verified close found."
+                  )
+                  continue
+
+
+              away_ml, home_ml = closing
+
+
+              games[
+                  game_id
+              ] = {
+                  "event_id":
+                      game_id,
+
+                  "away":
+                      away_name,
+
+                  "home":
+                      home_name,
+
+                  "away_ml":
+                      away_ml,
+
+                  "home_ml":
+                      home_ml,
+
+                  "source":
+                      source,
+              }
+
+
+              added += 1
+
+
+              print(
+                  "ADDED:",
+                  game_id,
+                  away_ml,
+                  home_ml,
+                  source,
+              )
+
+
+          # -----------------------------
+          # WRITE ONLY IF ACTUALLY CHANGED
+          # -----------------------------
+
+          new_text = json.dumps(
+              data,
+              sort_keys=True,
+          )
+
+
+          if new_text == original_text:
+              print()
+              print(
+                  "No additions. Existing JSON left untouched."
+              )
+
+          else:
+              data[
+                  "updated_at"
+              ] = (
+                  datetime
+                  .now(
+                      timezone.utc
+                  )
+                  .isoformat()
+              )
+
+              OUT.write_text(
+                  json.dumps(
+                      data,
+                      indent=2,
+                      sort_keys=True,
+                  )
+                  +
+                  "\n"
+              )
+
+              print()
+              print(
+                  "Added",
+                  added,
+                  "new games."
+              )
+
+
+          print(
+              "Total games stored:",
+              len(
+                  games
+              ),
+          )
+
+          PY
+
+
+      - name: Commit only if JSON changed
+        shell: bash
+        run: |
+          if [ -z "$(git status --porcelain -- closing-lines.json)" ]; then
+            echo "No JSON changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add closing-lines.json
+
+          git commit -m "Append NFL closing lines"
+
+          git push
