@@ -8,7 +8,6 @@
 <title>Football Fair-Price Lookup</title>
 
 <style>
-
 :root{
   --bg:#0b1220;
   --panel:#111827;
@@ -92,7 +91,7 @@ button.active{
 
 .scoreCard{
   margin-top:18px;
-  padding:16px;
+  padding:18px 16px;
   border:1px solid var(--border);
   background:var(--panel);
   border-radius:14px;
@@ -107,14 +106,14 @@ button.active{
 
 .scoreValue{
   text-align:center;
-  font-size:34px;
-  font-weight:900;
-  margin:4px 0 10px;
+  font-size:38px;
+  font-weight:950;
+  margin:5px 0 12px;
 }
 
 input[type="range"]{
   width:100%;
-  margin:10px 0 3px;
+  margin:10px 0 4px;
 }
 
 .rangeEnds{
@@ -126,7 +125,7 @@ input[type="range"]{
 
 .result{
   margin-top:18px;
-  padding:20px 12px;
+  padding:22px 12px;
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:14px;
@@ -142,17 +141,17 @@ input[type="range"]{
 }
 
 .price{
-  font-size:52px;
+  font-size:56px;
   line-height:1.05;
   font-weight:950;
-  margin-top:7px;
+  margin-top:8px;
 }
 
-.message{
-  font-size:12px;
+.estimate{
+  font-size:11px;
   color:var(--muted);
-  margin-top:8px;
-  min-height:16px;
+  margin-top:7px;
+  min-height:14px;
 }
 
 @media(min-width:560px){
@@ -160,7 +159,6 @@ input[type="range"]{
     grid-template-columns:repeat(4,1fr);
   }
 }
-
 </style>
 </head>
 
@@ -259,12 +257,12 @@ Break-even YES price
 <div
   class="price"
   id="price">
-60¢
+—
 </div>
 
 <div
-  class="message"
-  id="message">
+  class="estimate"
+  id="estimate">
 </div>
 
 </div>
@@ -274,163 +272,89 @@ Break-even YES price
 
 <script>
 
-/* ================================
-   NFL VALIDATED BUCKET VALUES
-   ================================ */
+/*
+==================================================
+HISTORICAL FAIR-PRICE ANCHORS
+
+The slider does NOT jump between these buckets.
+
+Instead, these historical values are used as
+anchor points for a smooth monotonic curve.
+
+All prices already include the 1.5% fee.
+==================================================
+*/
+
 
 const NFL = {
 
 "50–64%":{
-  "Q1":{"1–3":60,"4–7":71,"8+":82},
-  "Q2":{"1–3":64,"4–7":72,"8+":87},
-  "Q3":{"1–3":65,"4–7":74,"8+":91},
-  "Q4":{"1–3":73,"4–7":82,"8+":96}
+  "Q1":[60,71,82],
+  "Q2":[64,72,87],
+  "Q3":[65,74,91],
+  "Q4":[73,82,96]
 },
 
 "65–74%":{
-  "Q1":{"1–3":72,"4–7":82,"8+":89},
-  "Q2":{"1–3":72,"4–7":80,"8+":93},
-  "Q3":{"1–3":69,"4–7":80,"8+":94},
-  "Q4":{"1–3":68,"4–7":83,"8+":96}
+  "Q1":[72,82,89],
+  "Q2":[72,80,93],
+  "Q3":[69,80,94],
+  "Q4":[68,83,96]
 },
 
 "75–84%":{
-  "Q1":{"1–3":79,"4–7":87,"8+":93},
-  "Q2":{"1–3":80,"4–7":85,"8+":93},
-  "Q3":{"1–3":75,"4–7":81,"8+":96},
-  "Q4":{"1–3":75,"4–7":85,"8+":97}
+  "Q1":[79,87,93],
+  "Q2":[80,85,93],
+  "Q3":[75,81,96],
+  "Q4":[75,85,97]
 },
 
 "85%+":{
-  "Q1":{"1–3":88,"4–7":94,"8+":93},
-  "Q2":{"1–3":84,"4–7":88,"8+":94},
-  "Q3":{"1–3":84,"4–7":89,"8+":96},
-  "Q4":{"1–3":84,"4–7":90,"8+":98}
+  "Q1":[88,94,93],
+  "Q2":[84,88,94],
+  "Q3":[84,89,96],
+  "Q4":[84,90,98]
 }
 
 };
 
 
-/* ==========================================
-   COLLEGE SCORE-BY-SCORE SMOOTHED FAIR PRICE
-   +1 THROUGH +12
-   ========================================== */
+/*
+College anchor order:
+
+anchor 1 = lead 1–3
+anchor 2 = lead 4–7
+anchor 3 = lead 8–14
+*/
 
 const CFB = {
 
 "50–69%":{
-
-"Q1":{
-1:67.2,2:68.3,3:69.3,4:75.1,
-5:76.6,6:78.1,7:79.5,8:81.0,
-9:82.5,10:84.1,11:88.4,12:88.4
+  "Q1":[69.0,79.0,86.4],
+  "Q2":[67.5,75.9,86.4],
+  "Q3":[65.5,74.9,87.2],
+  "Q4":[69.5,84.8,95.1]
 },
-
-"Q2":{
-1:67.5,2:67.5,3:67.5,4:70.4,
-5:70.4,6:71.9,7:77.4,8:79.4,
-9:80.8,10:85.1,11:87.2,12:87.2
-},
-
-"Q3":{
-1:58.7,2:69.4,3:69.4,4:71.0,
-5:73.2,6:75.4,7:77.7,8:83.8,
-9:84.8,10:85.8,11:86.3,12:86.3
-},
-
-"Q4":{
-1:62.2,2:64.5,3:74.1,4:81.4,
-5:85.4,6:86.5,7:86.5,8:86.5,
-9:91.8,10:94.9,11:94.9,12:97.0
-}
-
-},
-
 
 "70–84%":{
-
-"Q1":{
-1:76.9,2:76.9,3:76.9,4:81.1,
-5:82.8,6:84.4,7:86.1,8:87.4,
-9:88.8,10:90.1,11:90.1,12:90.1
+  "Q1":[76.9,85.2,91.4],
+  "Q2":[75.4,85.7,90.1],
+  "Q3":[72.8,78.8,89.9],
+  "Q4":[73.1,83.2,96.3]
 },
-
-"Q2":{
-1:73.0,2:74.0,3:76.5,4:83.5,
-5:83.5,6:83.5,7:86.3,8:86.3,
-9:86.7,10:88.3,11:88.3,12:88.3
-},
-
-"Q3":{
-1:70.8,2:70.8,3:73.1,4:75.8,
-5:76.7,6:77.5,7:83.7,8:83.7,
-9:83.7,10:89.8,11:92.1,12:92.1
-},
-
-"Q4":{
-1:64.5,2:70.2,3:75.9,4:78.3,
-5:80.7,6:83.3,7:84.0,8:95.2,
-9:95.8,10:95.8,11:95.8,12:98.0
-}
-
-},
-
 
 "85–94%":{
-
-"Q1":{
-1:84.9,2:84.9,3:84.9,4:86.4,
-5:88.7,6:91.0,7:92.8,8:93.5,
-9:94.2,10:94.8,11:95.5,12:95.5
+  "Q1":[84.5,92.2,95.3],
+  "Q2":[84.4,89.2,93.9],
+  "Q3":[82.0,85.4,93.5],
+  "Q4":[79.0,90.2,96.0]
 },
-
-"Q2":{
-1:84.1,2:84.4,3:84.6,4:87.4,
-5:87.5,6:88.3,7:91.3,8:91.3,
-9:91.3,10:91.3,11:94.2,12:94.2
-},
-
-"Q3":{
-1:81.7,2:81.7,3:81.7,4:81.7,
-5:85.1,6:86.2,7:87.3,8:89.4,
-9:91.6,10:91.8,11:93.7,12:93.7
-},
-
-"Q4":{
-1:78.7,2:79.0,3:79.3,4:84.0,
-5:86.8,6:89.7,7:92.6,8:95.1,
-9:95.4,10:95.4,11:95.4,12:97.1
-}
-
-},
-
 
 "95%+":{
-  
-"Q1":{
-1:95.2,2:95.2,3:95.2,4:95.2,
-5:95.3,6:96.0,7:96.8,8:96.8,
-9:96.9,10:96.9,11:96.9,12:96.9
-},
-
-"Q2":{
-1:92.9,2:92.9,3:92.9,4:92.9,
-5:92.9,6:92.9,7:95.1,8:95.5,
-9:95.5,10:95.9,11:96.3,12:96.3
-},
-
-"Q3":{
-1:85.1,2:85.1,3:85.4,4:89.2,
-5:90.7,6:92.3,7:93.5,8:93.5,
-9:94.8,10:94.8,11:95.8,12:95.8
-},
-
-"Q4":{
-1:83.0,2:83.0,3:83.0,4:92.9,
-5:92.9,6:92.9,7:92.9,8:94.8,
-9:97.0,10:97.0,11:97.2,12:97.7
-}
-
+  "Q1":[96.3,96.5,97.4],
+  "Q2":[92.9,94.5,96.6],
+  "Q3":[85.0,92.3,95.1],
+  "Q4":[82.7,92.9,97.2]
 }
 
 };
@@ -444,7 +368,21 @@ nfl:{
     "65–74%",
     "75–84%",
     "85%+"
-  ]
+  ],
+
+  /*
+  Approximate centers of historical NFL
+  lead groups:
+
+  1–3  -> 2
+  4–7  -> 5.5
+  8+   -> 10
+
+  10 is used as the practical center of the
+  8+ region for our -3 through +12 slider.
+  */
+
+  x:[2,5.5,10]
 },
 
 cfb:{
@@ -453,38 +391,48 @@ cfb:{
     "70–84%",
     "85–94%",
     "95%+"
-  ]
+  ],
+
+  /*
+  College group centers:
+
+  1–3   -> 2
+  4–7   -> 5.5
+  8–14  -> 11
+  */
+
+  x:[2,5.5,11]
 }
 
 };
 
 
-let sport = "nfl";
-let probability = "50–64%";
-let quarter = "Q1";
-let score = 1;
+let sport="nfl";
+let probability="50–64%";
+let quarter="Q1";
+let score=1;
 
 
-const probButtons =
+const probButtons=
   document.getElementById("probButtons");
 
-const scoreSlider =
+const scoreSlider=
   document.getElementById("scoreSlider");
 
-const scoreValue =
+const scoreValue=
   document.getElementById("scoreValue");
 
-const price =
+const price=
   document.getElementById("price");
 
-const message =
-  document.getElementById("message");
+const estimate=
+  document.getElementById("estimate");
 
 
 function formatScore(value){
 
-  if(value > 0){
-    return "+" + value;
+  if(value>0){
+    return "+"+value;
   }
 
   return String(value);
@@ -494,104 +442,369 @@ function formatScore(value){
 
 function formatPrice(value){
 
-  if(value === null){
-    return "—";
-  }
+  value=
+    Math.max(
+      1,
+      Math.min(
+        99,
+        value
+      )
+    );
 
-  const rounded =
-    Math.round(value * 10) / 10;
+  const rounded=
+    Math.round(value*10)/10;
 
   if(Number.isInteger(rounded)){
-    return rounded.toFixed(0) + "¢";
+    return rounded.toFixed(0)+"¢";
   }
 
-  return rounded.toFixed(1) + "¢";
+  return rounded.toFixed(1)+"¢";
 
 }
 
 
-function nflPrice(){
+/*
+==================================================
+MONOTONE CUBIC INTERPOLATION
 
-  if(score <= 0){
-    return null;
+This creates a curved transition instead of
+straight bucket jumps.
+
+It is based on a monotone cubic Hermite curve,
+which prevents the fitted price from oscillating
+wildly between historical anchor points.
+==================================================
+*/
+
+
+function endpointSlope(h0,h1,d0,d1){
+
+  let m=
+    (
+      (2*h0+h1)*d0
+      -
+      h0*d1
+    )
+    /
+    (h0+h1);
+
+  if(
+    Math.sign(m)!==
+    Math.sign(d0)
+  ){
+    m=0;
   }
 
-  let leadBucket;
-
-  if(score <= 3){
-    leadBucket = "1–3";
-  }
-  else if(score <= 7){
-    leadBucket = "4–7";
-  }
-  else{
-    leadBucket = "8+";
+  else if(
+    Math.sign(d0)!==
+    Math.sign(d1)
+    &&
+    Math.abs(m)>
+    Math.abs(3*d0)
+  ){
+    m=3*d0;
   }
 
-  return NFL
-    [probability]
-    [quarter]
-    [leadBucket];
+  return m;
 
 }
 
 
-function collegePrice(){
+function middleSlope(h0,h1,d0,d1){
 
-  if(score <= 0){
-    return null;
+  if(
+    d0===0 ||
+    d1===0 ||
+    Math.sign(d0)!==
+    Math.sign(d1)
+  ){
+    return 0;
+  }
+
+  const w1=
+    2*h1+h0;
+
+  const w2=
+    h1+2*h0;
+
+  return
+    (w1+w2)
+    /
+    (
+      w1/d0
+      +
+      w2/d1
+    );
+
+}
+
+
+function hermite(
+  x,
+  x0,
+  x1,
+  y0,
+  y1,
+  m0,
+  m1
+){
+
+  const h=
+    x1-x0;
+
+  const t=
+    (x-x0)/h;
+
+  const t2=
+    t*t;
+
+  const t3=
+    t2*t;
+
+  const h00=
+    2*t3-3*t2+1;
+
+  const h10=
+    t3-2*t2+t;
+
+  const h01=
+    -2*t3+3*t2;
+
+  const h11=
+    t3-t2;
+
+  return (
+    h00*y0
+    +
+    h10*h*m0
+    +
+    h01*y1
+    +
+    h11*h*m1
+  );
+
+}
+
+
+function smoothFairPrice(
+  score,
+  anchors,
+  xs
+){
+
+  /*
+  Force historical anchors to be non-decreasing.
+
+  This removes tiny sample-driven reversals,
+  such as 94 -> 93, that do not make football
+  sense as the favorite's lead increases.
+  */
+
+  let y0=anchors[0];
+
+  let y1=
+    Math.max(
+      anchors[1],
+      y0
+    );
+
+  let y2=
+    Math.max(
+      anchors[2],
+      y1
+    );
+
+
+  const x0=xs[0];
+  const x1=xs[1];
+  const x2=xs[2];
+
+  const h0=
+    x1-x0;
+
+  const h1=
+    x2-x1;
+
+  const d0=
+    (y1-y0)/h0;
+
+  const d1=
+    (y2-y1)/h1;
+
+
+  let m0=
+    endpointSlope(
+      h0,
+      h1,
+      d0,
+      d1
+    );
+
+  const m1=
+    middleSlope(
+      h0,
+      h1,
+      d0,
+      d1
+    );
+
+  let m2=
+    endpointSlope(
+      h1,
+      h0,
+      d1,
+      d0
+    );
+
+
+  /*
+  Conservative extrapolation outside the
+  historical anchor range.
+
+  Trailing/tied values use only 65% of the
+  fitted left-hand slope.
+
+  Above the final anchor we use only 35%
+  of the final slope.
+  */
+
+  if(score<x0){
+
+    const leftSlope=
+      Math.max(
+        0,
+        m0*0.65
+      );
+
+    return (
+      y0
+      +
+      leftSlope*
+      (score-x0)
+    );
+
+  }
+
+
+  if(score<=x1){
+
+    return hermite(
+      score,
+      x0,
+      x1,
+      y0,
+      y1,
+      m0,
+      m1
+    );
+
+  }
+
+
+  if(score<=x2){
+
+    return hermite(
+      score,
+      x1,
+      x2,
+      y1,
+      y2,
+      m1,
+      m2
+    );
+
+  }
+
+
+  const rightSlope=
+    Math.max(
+      0,
+      m2*0.35
+    );
+
+  return (
+    y2
+    +
+    rightSlope*
+    (score-x2)
+  );
+
+}
+
+
+function currentAnchors(){
+
+  if(sport==="nfl"){
+
+    return NFL
+      [probability]
+      [quarter];
+
   }
 
   return CFB
     [probability]
-    [quarter]
-    [score] ?? null;
+    [quarter];
 
 }
 
 
-function currentPrice(){
+function getFairPrice(){
 
-  if(sport === "nfl"){
-    return nflPrice();
-  }
+  const anchors=
+    currentAnchors();
 
-  return collegePrice();
+  const xs=
+    CONFIG[sport].x;
+
+  return smoothFairPrice(
+    score,
+    anchors,
+    xs
+  );
 
 }
 
 
 function renderProbabilityButtons(){
 
-  probButtons.innerHTML = "";
+  probButtons.innerHTML="";
 
   CONFIG[sport]
     .probabilities
-    .forEach(p => {
+    .forEach(p=>{
 
-      const button =
-        document.createElement("button");
+      const button=
+        document.createElement(
+          "button"
+        );
 
-      button.type = "button";
-      button.textContent = p;
+      button.type="button";
 
-      if(p === probability){
-        button.classList.add("active");
+      button.textContent=p;
+
+      if(p===probability){
+        button.classList.add(
+          "active"
+        );
       }
 
       button.addEventListener(
         "click",
-        () => {
+        ()=>{
 
-          probability = p;
+          probability=p;
 
           renderProbabilityButtons();
+
           renderResult();
 
         }
       );
 
-      probButtons.appendChild(button);
+      probButtons.appendChild(
+        button
+      );
 
     });
 
@@ -600,31 +813,25 @@ function renderProbabilityButtons(){
 
 function renderResult(){
 
-  scoreValue.textContent =
+  scoreValue.textContent=
     formatScore(score);
 
-  const value =
-    currentPrice();
+  const value=
+    getFairPrice();
 
-  price.textContent =
+  price.textContent=
     formatPrice(value);
 
-  if(score <= 0){
 
-    message.textContent =
-      "Tied/trailing state not yet validated.";
+  if(score<=0){
 
-  }
-  else if(sport === "nfl"){
-
-    message.textContent =
-      "";
+    estimate.textContent=
+      "Trend estimate";
 
   }
   else{
 
-    message.textContent =
-      "";
+    estimate.textContent="";
 
   }
 
@@ -632,30 +839,35 @@ function renderResult(){
 
 
 document
-  .querySelectorAll("#sportButtons button")
-  .forEach(button => {
+  .querySelectorAll(
+    "#sportButtons button"
+  )
+  .forEach(button=>{
 
     button.addEventListener(
       "click",
-      () => {
+      ()=>{
 
-        sport =
+        sport=
           button.dataset.sport;
 
         document
-          .querySelectorAll("#sportButtons button")
-          .forEach(b =>
+          .querySelectorAll(
+            "#sportButtons button"
+          )
+          .forEach(b=>
             b.classList.toggle(
               "active",
-              b === button
+              b===button
             )
           );
 
-        probability =
+        probability=
           CONFIG[sport]
           .probabilities[0];
 
         renderProbabilityButtons();
+
         renderResult();
 
       }
@@ -665,22 +877,26 @@ document
 
 
 document
-  .querySelectorAll("#quarterButtons button")
-  .forEach(button => {
+  .querySelectorAll(
+    "#quarterButtons button"
+  )
+  .forEach(button=>{
 
     button.addEventListener(
       "click",
-      () => {
+      ()=>{
 
-        quarter =
+        quarter=
           button.dataset.quarter;
 
         document
-          .querySelectorAll("#quarterButtons button")
-          .forEach(b =>
+          .querySelectorAll(
+            "#quarterButtons button"
+          )
+          .forEach(b=>
             b.classList.toggle(
               "active",
-              b === button
+              b===button
             )
           );
 
@@ -694,10 +910,12 @@ document
 
 scoreSlider.addEventListener(
   "input",
-  () => {
+  ()=>{
 
-    score =
-      Number(scoreSlider.value);
+    score=
+      Number(
+        scoreSlider.value
+      );
 
     renderResult();
 
@@ -706,6 +924,7 @@ scoreSlider.addEventListener(
 
 
 renderProbabilityButtons();
+
 renderResult();
 
 </script>
