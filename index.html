@@ -46,10 +46,7 @@ body{
 }
 
 body{
-  padding:
-    16px
-    12px
-    32px;
+  padding:16px 12px 32px;
 }
 
 .wrap{
@@ -80,217 +77,114 @@ h1{
 }
 
 .sports{
-  grid-template-columns:
-    1fr
-    1fr;
+  grid-template-columns:1fr 1fr;
 }
 
 .probs{
-  grid-template-columns:
-    repeat(2,1fr);
+  grid-template-columns:repeat(2,1fr);
+}
+
+.possession{
+  grid-template-columns:1fr 1fr;
 }
 
 button{
   appearance:none;
-
-  border:
-    1px
-    solid
-    var(--border);
-
-  background:
-    var(--panel);
-
-  color:
-    var(--text);
-
-  border-radius:
-    11px;
-
-  padding:
-    12px
-    7px;
-
-  min-height:
-    46px;
-
-  font-size:
-    14px;
-
-  font-weight:
-    800;
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  border-radius:11px;
+  padding:12px 7px;
+  min-height:46px;
+  font-size:14px;
+  font-weight:800;
 }
 
 button.active{
-  background:
-    var(--panel2);
-
-  outline:
-    2px
-    solid
-    var(--accent);
+  background:var(--panel2);
+  outline:2px solid var(--accent);
 }
 
 .card{
   margin-top:16px;
-
-  padding:
-    17px
-    16px;
-
-  border:
-    1px
-    solid
-    var(--border);
-
-  background:
-    var(--panel);
-
-  border-radius:
-    14px;
+  padding:17px 16px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:14px;
 }
 
 .controlTitle{
   text-align:center;
-
-  color:
-    var(--muted);
-
-  font-size:
-    13px;
-
-  font-weight:
-    700;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
 }
 
 .bigValue{
   text-align:center;
-
-  font-size:
-    38px;
-
-  font-weight:
-    950;
-
-  margin:
-    5px
-    0
-    10px;
+  font-size:38px;
+  font-weight:950;
+  margin:5px 0 10px;
 }
 
 input[type="range"]{
   width:100%;
-
-  margin:
-    10px
-    0
-    4px;
+  margin:10px 0 4px;
 }
 
 .rangeMarks{
   display:flex;
-
-  justify-content:
-    space-between;
-
-  color:
-    var(--muted);
-
-  font-size:
-    11px;
+  justify-content:space-between;
+  color:var(--muted);
+  font-size:11px;
 }
-
-
-/* =========================
-   BREAK-EVEN RESULT
-   ========================= */
-
 
 .breakEvenBox{
   margin-top:18px;
-
-  padding:
-    24px
-    12px;
-
-  background:
-    var(--panel);
-
-  border:
-    2px
-    solid
-    var(--price);
-
-  border-radius:
-    15px;
-
+  padding:24px 12px;
+  background:var(--panel);
+  border:2px solid var(--price);
+  border-radius:15px;
   text-align:center;
 }
 
 .breakEvenLabel{
-  color:
-    var(--text);
-
-  font-size:
-    14px;
-
-  font-weight:
-    900;
-
-  letter-spacing:
-    .7px;
+  color:var(--text);
+  font-size:14px;
+  font-weight:900;
+  letter-spacing:.7px;
 }
 
 .breakEvenPrice{
-  color:
-    var(--price);
-
-  font-size:
-    68px;
-
-  line-height:
-    1;
-
-  font-weight:
-    950;
-
-  margin-top:
-    10px;
+  color:var(--price);
+  font-size:68px;
+  line-height:1;
+  font-weight:950;
+  margin-top:10px;
 }
 
 .winProb{
-  margin-top:
-    9px;
-
-  color:
-    var(--muted);
-
-  font-size:
-    13px;
+  margin-top:9px;
+  color:var(--muted);
+  font-size:13px;
 }
 
 .footer{
-  margin-top:
-    14px;
-
-  color:
-    var(--muted);
-
-  font-size:
-    10px;
-
-  line-height:
-    1.4;
-
+  margin-top:14px;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.4;
   text-align:center;
 }
 
+.hidden{
+  display:none;
+}
 
 @media(min-width:560px){
 
   .probs{
-    grid-template-columns:
-      repeat(4,1fr);
+    grid-template-columns:repeat(4,1fr);
   }
 
 }
@@ -314,7 +208,6 @@ NFL + College Top 25 • Flat 1.5¢ fee already included
 </div>
 
 
-
 <div class="label">
 Sport
 </div>
@@ -333,7 +226,6 @@ Sport
 NFL
 </button>
 
-
 <button
   type="button"
   data-sport="cfb"
@@ -342,7 +234,6 @@ College Top 25
 </button>
 
 </div>
-
 
 
 <div class="label">
@@ -356,6 +247,39 @@ Pregame favorite probability
 >
 </div>
 
+
+<div
+  id="possessionSection"
+>
+
+<div class="label">
+Possession
+</div>
+
+
+<div
+  class="grid possession"
+  id="possessionButtons"
+>
+
+<button
+  type="button"
+  data-possession="favorite"
+  class="active"
+>
+Favorite has ball
+</button>
+
+<button
+  type="button"
+  data-possession="opponent"
+>
+Opponent has ball
+</button>
+
+</div>
+
+</div>
 
 
 <div class="card">
@@ -394,7 +318,6 @@ Game time remaining
 </div>
 
 
-
 <div class="card">
 
 <div class="controlTitle">
@@ -430,7 +353,6 @@ Favorite score differential
 </div>
 
 
-
 <div class="breakEvenBox">
 
 <div class="breakEvenLabel">
@@ -455,7 +377,6 @@ YES BREAK-EVEN PRICE
 </div>
 
 
-
 <div
   class="footer"
   id="footer"
@@ -466,12 +387,11 @@ YES BREAK-EVEN PRICE
 </div>
 
 
-
 <script>
 
 
 /* ==================================================
-   NFL SMOOTH MODEL V1
+   NFL POSSESSION MODEL
    2023–2025
    ================================================== */
 
@@ -479,17 +399,21 @@ YES BREAK-EVEN PRICE
 const NFL_MODEL = {
 
   theta:[
-    0.17012575,
-    -0.16845319,
-    0.06884716,
+    0.155839592,
+    -0.094542496,
+    -0.004931891,
 
-    -2.17766428,
-    5.29263532,
-    -3.33886741,
+    -2.23281596,
+    5.40915399,
+    -3.39913111,
 
-    -0.76228060,
-    -3.65009808,
-    2.50030781
+    -0.705594407,
+    -3.88671556,
+    2.79298034,
+
+    -0.688165477,
+    -4.20984841,
+    3.37125392
   ],
 
   probabilities:{
@@ -508,15 +432,16 @@ const NFL_MODEL = {
 
   },
 
+  possession:true,
+
   label:
-    "NFL Smooth Model v1 • 2023–2025"
+    "NFL Smooth Model + Possession • 2023–2025"
 
 };
 
 
-
 /* ==================================================
-   COLLEGE TOP-25 SMOOTH MODEL
+   COLLEGE TOP-25 MODEL
    2023–2025
    ================================================== */
 
@@ -553,11 +478,12 @@ const CFB_MODEL = {
 
   },
 
+  possession:false,
+
   label:
     "College Top 25 Smooth Model • 2023–2025"
 
 };
-
 
 
 /* ==================================================
@@ -577,6 +503,8 @@ let minutesRemaining =
 let scoreDifferential =
   0;
 
+let possession =
+  "favorite";
 
 
 /* ==================================================
@@ -589,48 +517,45 @@ const probButtons =
     "probButtons"
   );
 
+const possessionSection =
+  document.getElementById(
+    "possessionSection"
+  );
 
 const timeSlider =
   document.getElementById(
     "timeSlider"
   );
 
-
 const scoreSlider =
   document.getElementById(
     "scoreSlider"
   );
-
 
 const timeValue =
   document.getElementById(
     "timeValue"
   );
 
-
 const scoreValue =
   document.getElementById(
     "scoreValue"
   );
-
 
 const breakEven =
   document.getElementById(
     "breakEven"
   );
 
-
 const winProb =
   document.getElementById(
     "winProb"
   );
 
-
 const footer =
   document.getElementById(
     "footer"
   );
-
 
 
 /* ==================================================
@@ -659,7 +584,6 @@ function sigmoid(z){
 }
 
 
-
 function logit(p){
 
   p =
@@ -671,7 +595,6 @@ function logit(p){
       )
     );
 
-
   return Math.log(
     p /
     (
@@ -680,7 +603,6 @@ function logit(p){
   );
 
 }
-
 
 
 function currentModel(){
@@ -698,7 +620,6 @@ function currentModel(){
 }
 
 
-
 function formatScore(x){
 
   if(
@@ -713,11 +634,9 @@ function formatScore(x){
 
   }
 
-
   return String(x);
 
 }
-
 
 
 function formatPrice(x){
@@ -728,7 +647,6 @@ function formatPrice(x){
     )
     /
     10;
-
 
   if(
     Number.isInteger(
@@ -744,7 +662,6 @@ function formatPrice(x){
 
   }
 
-
   return (
     value.toFixed(1)
     +
@@ -752,7 +669,6 @@ function formatPrice(x){
   );
 
 }
-
 
 
 /* ==================================================
@@ -765,35 +681,21 @@ function calculateProbability(){
   const model =
     currentModel();
 
-
   const theta =
     model.theta;
-
 
   const pregame =
     model
       .probabilities
       [probabilityLabel];
 
-
-  /*
-  t = fraction of game remaining
-
-  60 minutes = 1.0
-  30 minutes = 0.5
-  0 minutes = 0.0
-  */
-
-
   const t =
     minutesRemaining
     /
     60;
 
-
   const t2 =
     t * t;
-
 
   const pregameLogOdds =
     logit(
@@ -804,73 +706,84 @@ function calculateProbability(){
   const intercept =
     theta[0]
     +
-    theta[1]
-      *
-      t
+    theta[1] * t
     +
-    theta[2]
-      *
-      t2;
-
-
-  /*
-  Exponential weights keep the
-  pregame and score effects positive.
-  */
+    theta[2] * t2;
 
 
   const pregameWeight =
     Math.exp(
-
       theta[3]
       +
-      theta[4]
-        *
-        t
+      theta[4] * t
       +
-      theta[5]
-        *
-        t2
-
+      theta[5] * t2
     );
 
 
   const scoreWeight =
     Math.exp(
-
       theta[6]
       +
-      theta[7]
-        *
-        t
+      theta[7] * t
       +
-      theta[8]
-        *
-        t2
-
+      theta[8] * t2
     );
 
 
-  const z =
+  let z =
     intercept
-
     +
-
     pregameWeight
       *
       pregameLogOdds
-
     +
-
     scoreWeight
       *
       scoreDifferential;
 
 
+  /*
+  NFL possession adjustment.
+
+  Favorite possession = +1
+  Opponent possession = -1
+  */
+
+
+  if(
+    model.possession === true
+  ){
+
+    const possessionSign =
+      possession === "favorite"
+      ? 1
+      : -1;
+
+
+    const possessionWeight =
+      Math.exp(
+        theta[9]
+        +
+        theta[10] * t
+        +
+        theta[11] * t2
+      );
+
+
+    z =
+      z
+      +
+      possessionWeight
+        *
+        possessionSign;
+
+  }
+
+
   return sigmoid(z);
 
 }
-
 
 
 /* ==================================================
@@ -886,8 +799,6 @@ function calculateBreakEven(){
 
   /*
   Flat 1.5 CENT fee per contract.
-
-  This is NOT 1.5 percent.
   */
 
 
@@ -924,7 +835,6 @@ function calculateBreakEven(){
 }
 
 
-
 /* ==================================================
    PROBABILITY BUTTONS
    ================================================== */
@@ -932,13 +842,10 @@ function calculateBreakEven(){
 
 function renderProbabilityButtons(){
 
-  const model =
-    currentModel();
-
-
   const labels =
     Object.keys(
-      model.probabilities
+      currentModel()
+        .probabilities
     );
 
 
@@ -1019,9 +926,40 @@ function renderProbabilityButtons(){
 }
 
 
+/* ==================================================
+   POSSESSION DISPLAY
+   ================================================== */
+
+
+function renderPossessionSection(){
+
+  if(
+    sport === "nfl"
+  ){
+
+    possessionSection
+      .classList
+      .remove(
+        "hidden"
+      );
+
+  }
+
+  else{
+
+    possessionSection
+      .classList
+      .add(
+        "hidden"
+      );
+
+  }
+
+}
+
 
 /* ==================================================
-   RENDER RESULT
+   RESULT
    ================================================== */
 
 
@@ -1068,7 +1006,6 @@ function renderResult(){
     " • Flat 1.5¢ fee included";
 
 }
-
 
 
 /* ==================================================
@@ -1123,6 +1060,7 @@ document
 
           renderProbabilityButtons();
 
+          renderPossessionSection();
 
           renderResult();
 
@@ -1132,6 +1070,57 @@ document
     }
   );
 
+
+/* ==================================================
+   POSSESSION BUTTONS
+   ================================================== */
+
+
+document
+  .querySelectorAll(
+    "#possessionButtons button"
+  )
+  .forEach(
+    button=>{
+
+
+      button.addEventListener(
+        "click",
+        ()=>{
+
+
+          possession =
+            button
+              .dataset
+              .possession;
+
+
+          document
+            .querySelectorAll(
+              "#possessionButtons button"
+            )
+            .forEach(
+              b=>{
+
+
+                b
+                  .classList
+                  .toggle(
+                    "active",
+                    b === button
+                  );
+
+              }
+            );
+
+
+          renderResult();
+
+        }
+      );
+
+    }
+  );
 
 
 /* ==================================================
@@ -1156,7 +1145,6 @@ timeSlider.addEventListener(
 );
 
 
-
 /* ==================================================
    SCORE SLIDER
    ================================================== */
@@ -1179,13 +1167,14 @@ scoreSlider.addEventListener(
 );
 
 
-
 /* ==================================================
    START
    ================================================== */
 
 
 renderProbabilityButtons();
+
+renderPossessionSection();
 
 renderResult();
 
