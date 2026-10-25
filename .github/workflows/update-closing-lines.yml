@@ -33,24 +33,57 @@ jobs:
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
-          ESPN = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
-          JINA = "https://r.jina.ai/https://theoddsgap.com/odds/nfl/"
+          ESPN = (
+              "https://site.api.espn.com/apis/site/v2/"
+              "sports/football/nfl/scoreboard"
+          )
+
+          JINA_GAME = (
+              "https://r.jina.ai/"
+              "https://theoddsgap.com/odds/nfl/"
+          )
+
+          JINA_WEEKLY = (
+              "https://r.jina.ai/"
+              "https://theoddsgap.com/weeklyslate/nfl"
+          )
+
           OUT = Path("closing-lines.json")
 
+
           def fetch_text(url):
+
               req = urllib.request.Request(
                   url,
-                  headers={"User-Agent": "Mozilla/5.0 FootballFairPriceLookup/1.0"},
+                  headers={
+                      "User-Agent":
+                          "Mozilla/5.0 FootballFairPriceLookup/1.0"
+                  },
               )
-              with urllib.request.urlopen(req, timeout=30) as r:
-                  return r.read().decode("utf-8", errors="replace")
+
+              with urllib.request.urlopen(
+                  req,
+                  timeout=30,
+              ) as response:
+
+                  return response.read().decode(
+                      "utf-8",
+                      errors="replace",
+                  )
+
 
           def fetch_json(url):
-              return json.loads(fetch_text(url))
+
+              return json.loads(
+                  fetch_text(url)
+              )
+
 
           def slugify(name):
+
               return (
-                  name.lower()
+                  name
+                  .lower()
                   .replace("&", "and")
                   .replace("'", "")
                   .replace(".", "")
@@ -59,166 +92,779 @@ jobs:
                   .strip("-")
               )
 
+
           def eastern_date(iso_date):
-              dt = datetime.fromisoformat(iso_date.replace("Z", "+00:00"))
+
+              dt = datetime.fromisoformat(
+                  iso_date.replace(
+                      "Z",
+                      "+00:00",
+                  )
+              )
+
               return dt.astimezone(
-                  ZoneInfo("America/New_York")
-              ).strftime("%Y-%m-%d")
+                  ZoneInfo(
+                      "America/New_York"
+                  )
+              ).strftime(
+                  "%Y-%m-%d"
+              )
 
-          def parse_close(text):
-              text = text.replace("−", "-")
 
-              section_match = re.search(
-                  r"Closing Moneyline[\s\S]*?(?=\n#{1,4}\s|\Z)",
-                  text,
+          def clean_text(text):
+
+              return (
+                  text
+                  .replace("−", "-")
+                  .replace("–", "-")
+                  .replace("—", "-")
+              )
+
+
+          def extract_novig_from_team_section(
+              segment,
+              team_name,
+          ):
+
+              escaped = re.escape(
+                  team_name
+              )
+
+              #
+              # Supports both:
+              #
+              # #### Team Moneyline at Close
+              #
+              # and the finalized-page format:
+              #
+              # #### Team at Close, Best to Worst
+              #
+
+              header = re.search(
+                  rf"####\s+"
+                  rf"(?:\[\d+†)?"
+                  rf"{escaped}"
+                  rf"(?:\])?"
+                  rf"\s+"
+                  rf"(?:Moneyline\s+at\s+Close|at\s+Close,\s+Best\s+to\s+Worst)",
+                  segment,
                   flags=re.I,
               )
 
-              section = section_match.group(0) if section_match else text
+              if not header:
 
-              patterns = [
-                  r"\|\s*Novig\s*\|\s*([+-]\d+)\s*\|\s*([+-]\d+)",
-                  r"Novig\s*\|\s*([+-]\d+)\s*\|\s*([+-]\d+)",
-                  r"Novig\s+([+-]\d+)\s+([+-]\d+)",
+                  return None
+
+
+              after = segment[
+                  header.end():
               ]
 
+
+              next_section = re.search(
+                  r"\n####\s+",
+                  after,
+              )
+
+
+              if next_section:
+
+                  block = after[
+                      :next_section.start()
+                  ]
+
+              else:
+
+                  block = after
+
+
+              patterns = [
+
+                  r"\|\s*Novig\s*\|\s*([+-]\d+)",
+
+                  r"Novig\s*\|\s*([+-]\d+)",
+
+                  r"Novig\s+([+-]\d+)",
+
+              ]
+
+
               for pattern in patterns:
-                  m = re.search(pattern, section, flags=re.I)
-                  if m:
-                      return int(m.group(1)), int(m.group(2))
+
+                  match = re.search(
+                      pattern,
+                      block,
+                      flags=re.I,
+                  )
+
+                  if match:
+
+                      return int(
+                          match.group(1)
+                      )
+
 
               return None
 
-          if OUT.exists():
-              try:
-                  data = json.loads(OUT.read_text())
-              except Exception:
-                  data = {"updated_at": None, "games": {}}
-          else:
-              data = {"updated_at": None, "games": {}}
 
-          games = data.setdefault("games", {})
+          def parse_individual_game_close(
+              text,
+              away_name,
+              home_name,
+          ):
+
+              text = clean_text(
+                  text
+              )
+
+
+              #
+              # Require explicit closing terminology.
+              #
+
+              if not re.search(
+                  r"Moneyline\s+at\s+Close|"
+                  r"Closing\s+Moneyline|"
+                  r"at\s+Close,\s+Best\s+to\s+Worst",
+                  text,
+                  flags=re.I,
+              ):
+
+                  return None
+
+
+              away_ml = (
+                  extract_novig_from_team_section(
+                      text,
+                      away_name,
+                  )
+              )
+
+
+              home_ml = (
+                  extract_novig_from_team_section(
+                      text,
+                      home_name,
+                  )
+              )
+
+
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
+
+                  return None
+
+
+              return (
+                  away_ml,
+                  home_ml,
+              )
+
+
+          def parse_weekly_close(
+              text,
+              away_name,
+              home_name,
+          ):
+
+              text = clean_text(
+                  text
+              )
+
+
+              escaped_away = re.escape(
+                  away_name
+              )
+
+              escaped_home = re.escape(
+                  home_name
+              )
+
+
+              #
+              # Find the exact matchup block:
+              #
+              # ### Green Bay Packers at Detroit Lions
+              #
+              # Jina may optionally wrap the heading
+              # in a markdown link marker.
+              #
+
+              heading = re.search(
+                  rf"^###\s+"
+                  rf"(?:\[\d+†)?"
+                  rf"{escaped_away}"
+                  rf"\s+at\s+"
+                  rf"{escaped_home}"
+                  rf"(?:\])?"
+                  rf"\s*$",
+                  text,
+                  flags=re.I | re.M,
+              )
+
+
+              if not heading:
+
+                  return None
+
+
+              after = text[
+                  heading.start():
+              ]
+
+
+              next_matchup = re.search(
+                  r"\n###\s+",
+                  after[
+                      len(
+                          heading.group(0)
+                      ):
+                  ],
+              )
+
+
+              if next_matchup:
+
+                  segment_end = (
+                      len(
+                          heading.group(0)
+                      )
+                      +
+                      next_matchup.start()
+                  )
+
+                  segment = after[
+                      :segment_end
+                  ]
+
+              else:
+
+                  segment = after
+
+
+              #
+              # Safety requirement:
+              # the matchup block must explicitly
+              # contain closing-price language.
+              #
+
+              if not re.search(
+                  r"Moneyline\s+at\s+Close|"
+                  r"at\s+Close,\s+Best\s+to\s+Worst",
+                  segment,
+                  flags=re.I,
+              ):
+
+                  return None
+
+
+              away_ml = (
+                  extract_novig_from_team_section(
+                      segment,
+                      away_name,
+                  )
+              )
+
+
+              home_ml = (
+                  extract_novig_from_team_section(
+                      segment,
+                      home_name,
+                  )
+              )
+
+
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
+
+                  return None
+
+
+              return (
+                  away_ml,
+                  home_ml,
+              )
+
+
+          if OUT.exists():
+
+              try:
+
+                  data = json.loads(
+                      OUT.read_text()
+                  )
+
+              except Exception:
+
+                  data = {
+                      "updated_at": None,
+                      "games": {},
+                  }
+
+          else:
+
+              data = {
+                  "updated_at": None,
+                  "games": {},
+              }
+
+
+          games = data.setdefault(
+              "games",
+              {},
+          )
+
 
           now_et = datetime.now(
-              ZoneInfo("America/New_York")
+              ZoneInfo(
+                  "America/New_York"
+              )
           )
 
-          dates = now_et.strftime("%Y%m%d")
+
+          date_query = now_et.strftime(
+              "%Y%m%d"
+          )
+
 
           scoreboard = fetch_json(
-              f"{ESPN}?limit=100&dates={dates}"
+              f"{ESPN}"
+              f"?limit=100"
+              f"&dates={date_query}"
           )
+
+
+          #
+          # Fetch weekly board once.
+          # This becomes our fallback source.
+          #
+
+          try:
+
+              weekly_text = fetch_text(
+                  JINA_WEEKLY
+              )
+
+              print(
+                  "Weekly board loaded."
+              )
+
+          except Exception as exc:
+
+              weekly_text = ""
+
+              print(
+                  "Weekly board fetch failed:",
+                  exc,
+              )
+
 
           added = 0
 
-          for event in scoreboard.get("events", []):
-              comps = event.get("competitions") or []
 
-              if not comps:
+          for event in scoreboard.get(
+              "events",
+              [],
+          ):
+
+              competitions = (
+                  event.get(
+                      "competitions"
+                  )
+                  or
+                  []
+              )
+
+
+              if not competitions:
+
                   continue
 
-              comp = comps[0]
+
+              competition = competitions[
+                  0
+              ]
+
 
               state = (
-                  comp.get("status", {})
-                  .get("type", {})
-                  .get("state")
+                  competition
+                  .get(
+                      "status",
+                      {},
+                  )
+                  .get(
+                      "type",
+                      {},
+                  )
+                  .get(
+                      "state"
+                  )
               )
 
-              if state not in ("in", "post"):
+
+              #
+              # Never capture a pregame price.
+              # Game must be underway or final.
+              #
+
+              if state not in (
+                  "in",
+                  "post",
+              ):
+
                   continue
 
-              game_id = str(event.get("id"))
 
-              existing = games.get(game_id, {})
+              game_id = str(
+                  event.get(
+                      "id"
+                  )
+              )
+
+
+              existing = games.get(
+                  game_id,
+                  {},
+              )
+
+
+              #
+              # Once a frozen closing line
+              # has been stored, never overwrite it.
+              #
 
               if (
-                  existing.get("away_ml") is not None
-                  and existing.get("home_ml") is not None
+                  existing.get(
+                      "away_ml"
+                  )
+                  is not None
+                  and
+                  existing.get(
+                      "home_ml"
+                  )
+                  is not None
               ):
+
                   continue
 
-              competitors = comp.get("competitors", [])
+
+              competitors = (
+                  competition.get(
+                      "competitors",
+                      [],
+                  )
+              )
+
 
               away = next(
-                  (x for x in competitors if x.get("homeAway") == "away"),
+                  (
+                      team
+                      for team
+                      in competitors
+                      if team.get(
+                          "homeAway"
+                      )
+                      ==
+                      "away"
+                  ),
                   None,
               )
+
 
               home = next(
-                  (x for x in competitors if x.get("homeAway") == "home"),
+                  (
+                      team
+                      for team
+                      in competitors
+                      if team.get(
+                          "homeAway"
+                      )
+                      ==
+                      "home"
+                  ),
                   None,
               )
 
-              if not away or not home:
+
+              if (
+                  not away
+                  or
+                  not home
+              ):
+
                   continue
 
-              away_name = away.get("team", {}).get("displayName")
-              home_name = home.get("team", {}).get("displayName")
 
-              if not away_name or not home_name:
+              away_name = (
+                  away
+                  .get(
+                      "team",
+                      {},
+                  )
+                  .get(
+                      "displayName"
+                  )
+              )
+
+
+              home_name = (
+                  home
+                  .get(
+                      "team",
+                      {},
+                  )
+                  .get(
+                      "displayName"
+                  )
+              )
+
+
+              if (
+                  not away_name
+                  or
+                  not home_name
+              ):
+
                   continue
 
-              game_date = eastern_date(event["date"])
 
-              source_url = (
-                  f"{JINA}"
-                  f"{slugify(away_name)}-vs-{slugify(home_name)}/"
+              game_date = eastern_date(
+                  event[
+                      "date"
+                  ]
+              )
+
+
+              individual_url = (
+                  f"{JINA_GAME}"
+                  f"{slugify(away_name)}"
+                  f"-vs-"
+                  f"{slugify(home_name)}"
+                  f"/"
                   f"{game_date}"
               )
 
-              print("Checking:", away_name, "at", home_name)
+
+              print()
+              print(
+                  "Checking:",
+                  away_name,
+                  "at",
+                  home_name,
+              )
+
+
+              closing = None
+
+              source_used = None
+
+
+              #
+              # FIRST:
+              # permanent individual game page
+              #
 
               try:
-                  page = fetch_text(source_url)
-                  close = parse_close(page)
+
+                  game_page = fetch_text(
+                      individual_url
+                  )
+
+
+                  closing = (
+                      parse_individual_game_close(
+                          game_page,
+                          away_name,
+                          home_name,
+                      )
+                  )
+
+
+                  if closing:
+
+                      source_used = (
+                          "individual game page"
+                      )
+
+                      print(
+                          "Found on individual page."
+                      )
+
 
               except Exception as exc:
-                  print("Fetch failed:", exc)
+
+                  print(
+                      "Individual page failed:",
+                      exc,
+                  )
+
+
+              #
+              # SECOND:
+              # weekly-board fallback
+              #
+
+              if (
+                  closing is None
+                  and
+                  weekly_text
+              ):
+
+                  closing = (
+                      parse_weekly_close(
+                          weekly_text,
+                          away_name,
+                          home_name,
+                      )
+                  )
+
+
+                  if closing:
+
+                      source_used = (
+                          "weekly board fallback"
+                      )
+
+                      print(
+                          "Found on weekly board."
+                      )
+
+
+              if closing is None:
+
+                  print(
+                      "No explicit frozen closing line found."
+                  )
+
                   continue
 
-              if close is None:
-                  print("Closing line not found yet.")
-                  continue
 
-              away_ml, home_ml = close
+              away_ml, home_ml = (
+                  closing
+              )
 
-              games[game_id] = {
-                  "event_id": game_id,
-                  "date": game_date,
-                  "away": away_name,
-                  "home": home_name,
-                  "away_ml": away_ml,
-                  "home_ml": home_ml,
-                  "source": "The Odds Gap Novig closing moneyline",
+
+              games[
+                  game_id
+              ] = {
+
+                  "event_id":
+                      game_id,
+
+                  "date":
+                      game_date,
+
+                  "away":
+                      away_name,
+
+                  "home":
+                      home_name,
+
+                  "away_ml":
+                      away_ml,
+
+                  "home_ml":
+                      home_ml,
+
+                  "source":
+                      (
+                          "The Odds Gap "
+                          "Novig closing moneyline"
+                      ),
+
+                  "lookup":
+                      source_used,
+
               }
+
 
               added += 1
 
-              print("Saved:", away_ml, home_ml)
+
+              print(
+                  "Saved:",
+                  away_ml,
+                  home_ml,
+              )
+
 
           if added:
-              data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+              data[
+                  "updated_at"
+              ] = (
+                  datetime
+                  .now(
+                      timezone.utc
+                  )
+                  .isoformat()
+              )
+
 
           OUT.write_text(
-              json.dumps(data, indent=2, sort_keys=True) + "\n"
+              json.dumps(
+                  data,
+                  indent=2,
+                  sort_keys=True,
+              )
+              +
+              "\n"
           )
 
-          print("New closing lines:", added)
-          print("Total stored games:", len(games))
+
+          print()
+          print(
+              "New closing lines:",
+              added,
+          )
+
+
+          print(
+              "Total stored games:",
+              len(
+                  games
+              ),
+          )
+
           PY
+
 
       - name: Commit updated JSON
         shell: bash
         run: |
+
           if [ -z "$(git status --porcelain -- closing-lines.json)" ]; then
+
             echo "No closing-line changes."
+
             exit 0
+
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add closing-lines.json
-          git commit -m "Update NFL closing lines"
+          git config \
+            user.name \
+            "github-actions[bot]"
+
+
+          git config \
+            user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+
+          git add \
+            closing-lines.json
+
+
+          git commit \
+            -m \
+            "Update NFL closing lines"
+
+
           git push
