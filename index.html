@@ -1001,40 +1001,6 @@ function americanToImplied(
 }
 
 
-function noVigProbability(
-  favoriteML,
-  opponentML
-){
-
-  const a =
-    americanToImplied(
-      favoriteML
-    );
-
-  const b =
-    americanToImplied(
-      opponentML
-    );
-
-
-  if(
-    a === null ||
-    b === null
-  ){
-
-    return null;
-
-  }
-
-
-  return a /
-    (
-      a + b
-    );
-
-}
-
-
 function formatPrice(x){
 
   return (
@@ -1110,16 +1076,8 @@ function matchupKey(
 
 
 /* ==================================================
-   PARSE THE ODDS GAP CLOSING LINES
+   EXTRACT NOVIG CLOSE
    ================================================== */
-
-
-let closingOddsMap =
-  new Map();
-
-
-let oddsLoadedAt =
-  null;
 
 
 function extractNovigClose(
@@ -1137,11 +1095,11 @@ function extractNovigClose(
 
   const headerRegex =
     new RegExp(
-      "####\\\\s+"
+      "####\\\\s+(?:\\\\[\\\\d+†)?"
       +
       escaped
       +
-      "\\\\s+Moneyline at Close",
+      "(?:\\\\])?\\\\s+Moneyline at Close",
       "i"
     );
 
@@ -1190,36 +1148,36 @@ function extractNovigClose(
     after;
 
 
-  const novig =
-    block.match(
-      /Novig\s*\|\s*([+-]\d+)/i
-    );
+  const patterns = [
+
+    /Novig\s*\|\s*([+-]\d+)/i,
+
+    /Novig\s+([+-]\d+)/i,
+
+    /\|\s*Novig\s*\|\s*([+-]\d+)/i
+
+  ];
 
 
-  if(
-    novig
+  for(
+    const pattern
+    of
+    patterns
   ){
 
-    return Number(
-      novig[1]
-    );
-
-  }
-
-
-  const fallback =
-    block.match(
-      /Novig\s+([+-]\d+)/i
-    );
+    const match =
+      block.match(
+        pattern
+      );
 
 
-  if(
-    fallback
-  ){
+    if(match){
 
-    return Number(
-      fallback[1]
-    );
+      return Number(
+        match[1]
+      );
+
+    }
 
   }
 
@@ -1229,24 +1187,54 @@ function extractNovigClose(
 }
 
 
-function parseOddsGap(
-  rawText
-){
+
+/* ==================================================
+   PARSE THE ODDS GAP
+
+   Jina headings often look like:
+
+   ### [46†Cleveland Browns at Tennessee Titans]
+
+   instead of:
+
+   ### Cleveland Browns at Tennessee Titans
+   ================================================== */
+
+
+let closingOddsMap =
+  new Map();
+
+
+let oddsLoadedAt =
+  null;
+
+
+function parseOddsGap(rawText){
 
   const text =
-    rawText
-      .replaceAll(
-        "−",
-        "-"
-      );
+    rawText.replaceAll(
+      "−",
+      "-"
+    );
 
 
   const map =
     new Map();
 
 
+  /*
+    Accept BOTH:
+
+    ### Cleveland Browns at Tennessee Titans
+
+    and
+
+    ### [46†Cleveland Browns at Tennessee Titans]
+  */
+
+
   const headingRegex =
-    /^###\s+(.+?)\s+at\s+(.+?)\s*$/gm;
+    /^###\s+(?:\[\d+†)?(.+?)\s+at\s+(.+?)(?:\])?\s*$/gm;
 
 
   const matches =
@@ -1258,25 +1246,49 @@ function parseOddsGap(
 
 
   for(
-    let i=0;
-    i<matches.length;
+    let i = 0;
+    i < matches.length;
     i++
   ){
 
-    const match =
-      matches[i];
+    let away =
+      matches[i][1]
+        .trim();
 
 
-    const away =
-      match[1].trim();
+    let home =
+      matches[i][2]
+        .trim();
 
 
-    const home =
-      match[2].trim();
+    away =
+      away
+        .replace(
+          /^\[\d+†/,
+          ""
+        )
+        .replace(
+          /\]$/,
+          ""
+        )
+        .trim();
+
+
+    home =
+      home
+        .replace(
+          /^\[\d+†/,
+          ""
+        )
+        .replace(
+          /\]$/,
+          ""
+        )
+        .trim();
 
 
     const start =
-      match.index;
+      matches[i].index;
 
 
     const end =
@@ -1292,6 +1304,24 @@ function parseOddsGap(
         start,
         end
       );
+
+
+    /*
+      Do not use future/current odds.
+      Require an actual frozen
+      "Moneyline at Close" section.
+    */
+
+
+    if(
+      !/Moneyline at Close/i.test(
+        segment
+      )
+    ){
+
+      continue;
+
+    }
 
 
     const awayML =
@@ -1319,19 +1349,33 @@ function parseOddsGap(
 
 
     map.set(
+
       matchupKey(
         away,
         home
       ),
+
       {
+
         away,
         home,
         awayML,
         homeML
+
       }
+
     );
 
   }
+
+
+  console.log(
+    "Closing matchups parsed:",
+    map.size,
+    [
+      ...map.entries()
+    ]
+  );
 
 
   return map;
@@ -1349,9 +1393,17 @@ async function refreshClosingOdds(){
 
   try{
 
+    const url =
+      ODDS_GAP_READER
+      +
+      "?_="
+      +
+      Date.now();
+
+
     const response =
       await fetch(
-        ODDS_GAP_READER,
+        url,
         {
           cache:"no-store"
         }
@@ -1573,10 +1625,12 @@ function buildLiveState(
 
   const basic =
     {
+
       id:
         event.id,
 
       awayName,
+
       homeName,
 
       awayAbbr:
@@ -1609,12 +1663,14 @@ function buildLiveState(
       secondsRemaining,
 
       lastPlay:
-        situation.lastPlay &&
+        situation.lastPlay
+        &&
         situation.lastPlay.text
         ?
         situation.lastPlay.text
         :
         ""
+
     };
 
 
@@ -1623,8 +1679,11 @@ function buildLiveState(
   ){
 
     return {
+
       ...basic,
+
       closingFound:false
+
     };
 
   }
@@ -1648,8 +1707,11 @@ function buildLiveState(
   ){
 
     return {
+
       ...basic,
+
       closingFound:false
+
     };
 
   }
@@ -1672,11 +1734,17 @@ function buildLiveState(
 
 
   let favorite;
+
   let opponent;
+
   let favoriteML;
+
   let opponentML;
+
   let pregameProbability;
+
   let favoriteScore;
+
   let opponentScore;
 
 
@@ -1688,23 +1756,33 @@ function buildLiveState(
     favorite =
       home;
 
+
     opponent =
       away;
+
 
     favoriteML =
       closing.homeML;
 
+
     opponentML =
       closing.awayML;
+
 
     pregameProbability =
       homePregame;
 
+
     favoriteScore =
-      Number(home.score);
+      Number(
+        home.score
+      );
+
 
     opponentScore =
-      Number(away.score);
+      Number(
+        away.score
+      );
 
   }
 
@@ -1713,23 +1791,33 @@ function buildLiveState(
     favorite =
       away;
 
+
     opponent =
       home;
+
 
     favoriteML =
       closing.awayML;
 
+
     opponentML =
       closing.homeML;
+
 
     pregameProbability =
       awayPregame;
 
+
     favoriteScore =
-      Number(away.score);
+      Number(
+        away.score
+      );
+
 
     opponentScore =
-      Number(home.score);
+      Number(
+        home.score
+      );
 
   }
 
@@ -1759,7 +1847,9 @@ function buildLiveState(
 
   if(
     possessionId ===
-    String(home.id)
+    String(
+      home.id
+    )
   ){
 
     possessionName =
@@ -1770,7 +1860,9 @@ function buildLiveState(
 
   if(
     possessionId ===
-    String(away.id)
+    String(
+      away.id
+    )
   ){
 
     possessionName =
@@ -1816,7 +1908,9 @@ function buildLiveState(
       favorite.team.shortDisplayName,
 
     favoriteId:
-      String(favorite.id),
+      String(
+        favorite.id
+      ),
 
     opponentName:
       opponent.team.shortDisplayName,
@@ -1920,14 +2014,20 @@ async function refreshLiveGames(){
     ){
 
       const competition =
-        event.competitions &&
+        event.competitions
+        &&
         event.competitions[0];
 
 
       if(
-        !competition ||
-        competition.status.type.state !==
-        "in"
+        !competition
+        ||
+        competition
+          .status
+          .type
+          .state
+          !==
+          "in"
       ){
 
         continue;
@@ -1942,7 +2042,11 @@ async function refreshLiveGames(){
 
 
       if(state){
-        games.push(state);
+
+        games.push(
+          state
+        );
+
       }
 
     }
@@ -1953,7 +2057,8 @@ async function refreshLiveGames(){
 
 
     if(
-      selectedGameId === null &&
+      selectedGameId === null
+      &&
       games.length > 0
     ){
 
@@ -1964,7 +2069,8 @@ async function refreshLiveGames(){
 
 
     if(
-      selectedGameId !== null &&
+      selectedGameId !== null
+      &&
       !games.some(
         g =>
           g.id ===
@@ -2176,7 +2282,9 @@ function renderSelectedLiveGame(){
     );
 
 
-  if(!game){
+  if(
+    !game
+  ){
 
     area.classList.add(
       "hidden"
@@ -2271,14 +2379,18 @@ function renderSelectedLiveGame(){
     favorite.textContent =
       "Waiting for closing line";
 
+
     moneyline.textContent =
       "—";
+
 
     pregame.textContent =
       "—";
 
+
     diff.textContent =
       "—";
+
 
     possession.textContent =
       game.possessionId
@@ -2287,8 +2399,10 @@ function renderSelectedLiveGame(){
       :
       "Unknown";
 
+
     price.textContent =
       "—";
+
 
     winProb.textContent =
       "Waiting for closing line";
