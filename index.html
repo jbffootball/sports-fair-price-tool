@@ -2,21 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1, viewport-fit=cover"
->
-
-<meta
-  name="theme-color"
-  content="#0b1220"
->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
 
 <title>Football Fair-Price Lookup</title>
 
 <style>
-
 :root{
   --bg:#0b1220;
   --panel:#111827;
@@ -30,26 +21,16 @@
   --bad:#f87171;
 }
 
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
-html,
-body{
+html,body{
   margin:0;
   background:var(--bg);
   color:var(--text);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Arial,
-    sans-serif;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
 }
 
-body{
-  padding:16px 12px 32px;
-}
+body{padding:16px 12px 32px}
 
 .wrap{
   max-width:720px;
@@ -105,7 +86,10 @@ button.active{
   outline:2px solid var(--accent);
 }
 
-.card{
+.hidden{display:none!important}
+
+.card,
+.liveGameCard{
   margin-top:16px;
   padding:17px 16px;
   border:1px solid var(--border);
@@ -168,23 +152,18 @@ input[type="range"]{
   font-weight:800;
 }
 
-.detail{
-  margin-top:5px;
+.detail,
+.footer,
+.refreshLine{
   color:var(--muted);
-  font-size:12px;
-}
-
-.footer{
-  margin-top:14px;
-  color:var(--muted);
-  font-size:10px;
+  font-size:11px;
   line-height:1.4;
   text-align:center;
 }
 
-.hidden{
-  display:none !important;
-}
+.detail{margin-top:6px}
+.footer{margin-top:14px}
+.refreshLine{margin-top:9px}
 
 .liveStatus{
   padding:12px 14px;
@@ -226,14 +205,6 @@ input[type="range"]{
   color:var(--muted);
   font-size:12px;
   margin-top:4px;
-}
-
-.liveGameCard{
-  margin-top:16px;
-  padding:17px 16px;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:14px;
 }
 
 .liveTeams{
@@ -287,21 +258,11 @@ input[type="range"]{
   line-height:1.4;
 }
 
-.refreshLine{
-  text-align:center;
-  color:var(--muted);
-  font-size:10px;
-  margin-top:8px;
-}
-
 @media(min-width:560px){
-
   .probs{
     grid-template-columns:repeat(4,1fr);
   }
-
 }
-
 </style>
 </head>
 
@@ -309,335 +270,216 @@ input[type="range"]{
 
 <div class="wrap">
 
-<h1>
-Football Fair-Price Lookup
-</h1>
+<h1>Football Fair-Price Lookup</h1>
 
 <div class="sub">
 Live NFL + manual NFL/College • Flat 1.5¢ fee included
 </div>
 
-
-<div class="label">
-Mode
-</div>
+<div class="label">Mode</div>
 
 <div class="grid modeGrid">
-
-<button
-  id="liveModeButton"
-  class="active"
-  type="button"
->
-Live NFL
-</button>
-
-<button
-  id="manualModeButton"
-  type="button"
->
-Manual
-</button>
-
+  <button id="liveModeButton" class="active">Live NFL</button>
+  <button id="manualModeButton">Manual</button>
 </div>
 
-
-<!-- LIVE NFL -->
+<!-- LIVE -->
 
 <div id="liveSection">
 
-<div
-  id="liveStatus"
-  class="liveStatus"
->
-Loading live games and closing lines…
-</div>
+  <div id="liveStatus" class="liveStatus">
+    Loading live games…
+  </div>
 
+  <div class="label">Live games</div>
 
-<div class="label">
-Live games
-</div>
+  <div id="gameList" class="gameList"></div>
 
+  <div id="liveGameArea" class="hidden">
 
-<div
-  id="gameList"
-  class="gameList"
->
-</div>
+    <div class="liveGameCard">
 
+      <div id="liveTeams" class="liveTeams"></div>
 
-<div
-  id="liveGameArea"
-  class="hidden"
->
+      <div id="liveScore" class="liveScore"></div>
 
-<div class="liveGameCard">
+      <div id="liveClock" class="liveClock"></div>
 
-<div
-  id="liveTeams"
-  class="liveTeams"
->
-</div>
+      <div class="liveRows">
 
-<div
-  id="liveScore"
-  class="liveScore"
->
-</div>
+        <div class="liveRow">
+          <span>Pregame favorite</span>
+          <span id="liveFavorite"></span>
+        </div>
 
-<div
-  id="liveClock"
-  class="liveClock"
->
-</div>
+        <div class="liveRow">
+          <span>Closing moneyline</span>
+          <span id="liveMoneyline"></span>
+        </div>
 
+        <div class="liveRow">
+          <span>Pregame probability</span>
+          <span id="livePregame"></span>
+        </div>
 
-<div class="liveRows">
+        <div class="liveRow">
+          <span>Favorite score differential</span>
+          <span id="liveDiff"></span>
+        </div>
 
-<div class="liveRow">
-<span>Pregame favorite</span>
-<span id="liveFavorite"></span>
-</div>
+        <div class="liveRow">
+          <span>Possession</span>
+          <span id="livePossession"></span>
+        </div>
 
-<div class="liveRow">
-<span>Closing moneyline</span>
-<span id="liveMoneyline"></span>
-</div>
+      </div>
 
-<div class="liveRow">
-<span>Pregame probability</span>
-<span id="livePregame"></span>
-</div>
+      <div id="lastPlay" class="lastPlay"></div>
 
-<div class="liveRow">
-<span>Favorite score differential</span>
-<span id="liveDiff"></span>
-</div>
+    </div>
 
-<div class="liveRow">
-<span>Possession</span>
-<span id="livePossession"></span>
-</div>
+    <div class="breakEvenBox">
 
-</div>
+      <div class="breakEvenLabel">
+        YES BREAK-EVEN PRICE
+      </div>
 
+      <div id="liveBreakEven" class="breakEvenPrice">
+        —
+      </div>
 
-<div
-  id="lastPlay"
-  class="lastPlay"
->
-</div>
+      <div id="liveWinProb" class="winProb"></div>
+
+      <div class="detail">
+        Actual closing line + live score + exact clock + possession
+      </div>
+
+    </div>
+
+    <div id="refreshLine" class="refreshLine"></div>
+
+  </div>
 
 </div>
-
-
-<div class="breakEvenBox">
-
-<div class="breakEvenLabel">
-YES BREAK-EVEN PRICE
-</div>
-
-<div
-  id="liveBreakEven"
-  class="breakEvenPrice"
->
-—
-</div>
-
-<div
-  id="liveWinProb"
-  class="winProb"
->
-</div>
-
-<div class="detail">
-Actual closing line + live score + exact clock + possession
-</div>
-
-</div>
-
-
-<div
-  id="refreshLine"
-  class="refreshLine"
->
-</div>
-
-</div>
-
-</div>
-
 
 
 <!-- MANUAL -->
 
-<div
-  id="manualSection"
-  class="hidden"
->
+<div id="manualSection" class="hidden">
+
+  <div class="label">Sport</div>
+
+  <div class="grid sports" id="sportButtons">
+
+    <button data-sport="nfl" class="active">
+      NFL
+    </button>
+
+    <button data-sport="cfb">
+      College Top 25
+    </button>
+
+  </div>
 
 
-<div class="label">
-Sport
-</div>
+  <div class="label">
+    Pregame favorite probability
+  </div>
 
-<div
-  class="grid sports"
-  id="sportButtons"
->
-
-<button
-  type="button"
-  data-sport="nfl"
-  class="active"
->
-NFL
-</button>
-
-<button
-  type="button"
-  data-sport="cfb"
->
-College Top 25
-</button>
-
-</div>
+  <div class="grid probs" id="probButtons"></div>
 
 
-<div class="label">
-Pregame favorite probability
-</div>
+  <div id="possessionSection">
 
-<div
-  class="grid probs"
-  id="probButtons"
->
-</div>
+    <div class="label">Possession</div>
 
+    <div class="grid possession" id="possessionButtons">
 
-<div id="possessionSection">
+      <button data-possession="favorite" class="active">
+        Favorite has ball
+      </button>
 
-<div class="label">
-Possession
-</div>
+      <button data-possession="opponent">
+        Opponent has ball
+      </button>
 
-<div
-  class="grid possession"
-  id="possessionButtons"
->
+    </div>
 
-<button
-  type="button"
-  data-possession="favorite"
-  class="active"
->
-Favorite has ball
-</button>
-
-<button
-  type="button"
-  data-possession="opponent"
->
-Opponent has ball
-</button>
-
-</div>
-
-</div>
+  </div>
 
 
-<div class="card">
+  <div class="card">
 
-<div class="controlTitle">
-Game time remaining
-</div>
+    <div class="controlTitle">
+      Game time remaining
+    </div>
 
-<div
-  class="bigValue"
-  id="timeValue"
->
-30 min
-</div>
+    <div class="bigValue" id="timeValue">
+      30 min
+    </div>
 
-<input
-  id="timeSlider"
-  type="range"
-  min="0"
-  max="60"
-  step="1"
-  value="30"
->
+    <input
+      id="timeSlider"
+      type="range"
+      min="0"
+      max="60"
+      step="1"
+      value="30"
+    >
 
-<div class="rangeMarks">
-<span>0</span>
-<span>15</span>
-<span>30</span>
-<span>45</span>
-<span>60</span>
-</div>
+    <div class="rangeMarks">
+      <span>0</span>
+      <span>15</span>
+      <span>30</span>
+      <span>45</span>
+      <span>60</span>
+    </div>
 
-</div>
+  </div>
 
 
-<div class="card">
+  <div class="card">
 
-<div class="controlTitle">
-Favorite score differential
-</div>
+    <div class="controlTitle">
+      Favorite score differential
+    </div>
 
-<div
-  class="bigValue"
-  id="scoreValue"
->
-0
-</div>
+    <div class="bigValue" id="scoreValue">
+      0
+    </div>
 
-<input
-  id="scoreSlider"
-  type="range"
-  min="-7"
-  max="15"
-  step="1"
-  value="0"
->
+    <input
+      id="scoreSlider"
+      type="range"
+      min="-7"
+      max="15"
+      step="1"
+      value="0"
+    >
 
-<div class="rangeMarks">
-<span>-7</span>
-<span>0</span>
-<span>+7</span>
-<span>+15</span>
-</div>
+    <div class="rangeMarks">
+      <span>-7</span>
+      <span>0</span>
+      <span>+7</span>
+      <span>+15</span>
+    </div>
 
-</div>
+  </div>
 
 
-<div class="breakEvenBox">
+  <div class="breakEvenBox">
 
-<div class="breakEvenLabel">
-YES BREAK-EVEN PRICE
-</div>
+    <div class="breakEvenLabel">
+      YES BREAK-EVEN PRICE
+    </div>
 
-<div
-  class="breakEvenPrice"
-  id="breakEven"
->
-—
-</div>
+    <div class="breakEvenPrice" id="breakEven">
+      —
+    </div>
 
-<div
-  class="winProb"
-  id="winProb"
->
-</div>
+    <div class="winProb" id="winProb"></div>
 
-</div>
-
-
-<div
-  class="footer"
-  id="footer"
->
-</div>
+  </div>
 
 </div>
 
@@ -646,36 +488,25 @@ YES BREAK-EVEN PRICE
 
 <script>
 
-
-/* ==================================================
-   PUBLIC DATA SOURCES
-   ================================================== */
-
+/* ======================================
+   SOURCES
+   ====================================== */
 
 const ESPN_SCOREBOARD =
   "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
 
-
-const ODDS_GAP_READER =
-  "https://r.jina.ai/https://theoddsgap.com/weeklyslate/nfl";
-
+const JINA_PREFIX =
+  "https://r.jina.ai/https://theoddsgap.com/odds/nfl/";
 
 const LIVE_REFRESH_MS =
   5000;
 
 
-const ODDS_REFRESH_MS =
-  60000;
-
-
-
-/* ==================================================
-   NFL POSSESSION MODEL
-   ================================================== */
-
+/* ======================================
+   MODELS
+   ====================================== */
 
 const NFL_MODEL = {
-
   theta:[
     0.155839592,
     -0.094542496,
@@ -695,32 +526,15 @@ const NFL_MODEL = {
   ],
 
   probabilities:{
-
-    "50–64%":
-      0.5884945989,
-
-    "65–74%":
-      0.7101917863,
-
-    "75–84%":
-      0.7694025189,
-
-    "85%+":
-      0.8740328625
-
+    "50–64%":0.5884945989,
+    "65–74%":0.7101917863,
+    "75–84%":0.7694025189,
+    "85%+":0.8740328625
   }
-
 };
 
 
-
-/* ==================================================
-   COLLEGE MODEL
-   ================================================== */
-
-
 const CFB_MODEL = {
-
   theta:[
     -1.32202390,
     4.33068028,
@@ -736,46 +550,24 @@ const CFB_MODEL = {
   ],
 
   probabilities:{
-
-    "50–69%":
-      0.5947557145,
-
-    "70–84%":
-      0.7660083851,
-
-    "85–94%":
-      0.8979099534,
-
-    "95%+":
-      0.9852538025
-
+    "50–69%":0.5947557145,
+    "70–84%":0.7660083851,
+    "85–94%":0.8979099534,
+    "95%+":0.9852538025
   }
-
 };
 
 
-
-/* ==================================================
-   MATH
-   ================================================== */
-
+/* ======================================
+   MODEL MATH
+   ====================================== */
 
 function sigmoid(z){
 
-  if(z > 35){
-    return 1;
-  }
+  if(z > 35) return 1;
+  if(z < -35) return 0;
 
-  if(z < -35){
-    return 0;
-  }
-
-  return 1 /
-    (
-      1 +
-      Math.exp(-z)
-    );
-
+  return 1/(1+Math.exp(-z));
 }
 
 
@@ -784,19 +576,12 @@ function logit(p){
   p =
     Math.max(
       .00001,
-      Math.min(
-        .99999,
-        p
-      )
+      Math.min(.99999,p)
     );
 
   return Math.log(
-    p /
-    (
-      1-p
-    )
+    p/(1-p)
   );
-
 }
 
 
@@ -807,31 +592,31 @@ function nflProbability(
   favoriteHasBall
 ){
 
-  const t =
-    minutesRemaining / 60;
-
-  const t2 =
-    t * t;
-
   const x =
     NFL_MODEL.theta;
+
+  const t =
+    minutesRemaining/60;
+
+  const t2 =
+    t*t;
 
 
   const intercept =
     x[0]
     +
-    x[1] * t
+    x[1]*t
     +
-    x[2] * t2;
+    x[2]*t2;
 
 
   const pregameWeight =
     Math.exp(
       x[3]
       +
-      x[4] * t
+      x[4]*t
       +
-      x[5] * t2
+      x[5]*t2
     );
 
 
@@ -839,9 +624,9 @@ function nflProbability(
     Math.exp(
       x[6]
       +
-      x[7] * t
+      x[7]*t
       +
-      x[8] * t2
+      x[8]*t2
     );
 
 
@@ -849,16 +634,10 @@ function nflProbability(
     Math.exp(
       x[9]
       +
-      x[10] * t
+      x[10]*t
       +
-      x[11] * t2
+      x[11]*t2
     );
-
-
-  const possessionSign =
-    favoriteHasBall
-    ? 1
-    : -1;
 
 
   return sigmoid(
@@ -883,10 +662,15 @@ function nflProbability(
 
     possessionWeight
       *
-      possessionSign
+      (
+        favoriteHasBall
+        ?
+        1
+        :
+        -1
+      )
 
   );
-
 }
 
 
@@ -900,28 +684,28 @@ function collegeProbability(
     CFB_MODEL.theta;
 
   const t =
-    minutesRemaining / 60;
+    minutesRemaining/60;
 
   const t2 =
-    t * t;
+    t*t;
 
 
   return sigmoid(
 
     x[0]
     +
-    x[1] * t
+    x[1]*t
     +
-    x[2] * t2
+    x[2]*t2
 
     +
 
     Math.exp(
       x[3]
       +
-      x[4] * t
+      x[4]*t
       +
-      x[5] * t2
+      x[5]*t2
     )
     *
     logit(
@@ -933,53 +717,45 @@ function collegeProbability(
     Math.exp(
       x[6]
       +
-      x[7] * t
+      x[7]*t
       +
-      x[8] * t2
+      x[8]*t2
     )
     *
     scoreDifferential
 
   );
-
 }
 
 
-function breakEvenCents(
-  probability
-){
+function breakEvenCents(p){
 
   return Math.max(
     0,
     Math.min(
       98.5,
-      probability * 100 - 1.5
+      p*100-1.5
     )
   );
-
 }
 
 
-function americanToImplied(
-  odds
-){
+/* ======================================
+   MONEYLINE
+   ====================================== */
+
+function americanToImplied(odds){
 
   odds =
     Number(odds);
 
-
   if(
     !Number.isFinite(odds)
   ){
-
     return null;
-
   }
 
-
-  if(
-    odds < 0
-  ){
+  if(odds < 0){
 
     return (
       -odds /
@@ -987,9 +763,7 @@ function americanToImplied(
         -odds + 100
       )
     );
-
   }
-
 
   return (
     100 /
@@ -997,1967 +771,100 @@ function americanToImplied(
       odds + 100
     )
   );
-
 }
 
+
+function noVigPair(
+  awayML,
+  homeML
+){
+
+  const a =
+    americanToImplied(awayML);
+
+  const h =
+    americanToImplied(homeML);
+
+
+  if(
+    a === null ||
+    h === null
+  ){
+    return null;
+  }
+
+
+  const total =
+    a+h;
+
+
+  return {
+    away:a/total,
+    home:h/total
+  };
+}
+
+
+/* ======================================
+   FORMAT
+   ====================================== */
 
 function formatPrice(x){
 
   return (
-    Math.round(
-      x * 10
-    ) / 10
+    Math.round(x*10)/10
   ).toFixed(1)
   +
   "¢";
-
 }
 
 
 function formatPercent(x){
 
   return (
-    x * 100
+    x*100
   ).toFixed(1)
   +
   "%";
-
 }
 
 
 function formatDiff(x){
 
-  return x > 0
-    ? "+" + x
-    : String(x);
-
+  return x>0
+    ?
+    "+"+x
+    :
+    String(x);
 }
 
 
 function formatML(x){
 
-  return x > 0
-    ? "+" + x
-    : String(x);
-
+  return x>0
+    ?
+    "+"+x
+    :
+    String(x);
 }
 
 
+/* ======================================
+   ODDS GAP GAME URL
+   ====================================== */
 
-/* ==================================================
-   TEAM NORMALIZATION
-   ================================================== */
-
-
-function normalizeTeam(name){
+function slugifyTeam(name){
 
   return String(name)
     .toLowerCase()
-    .replace(/[^a-z0-9]/g,"");
-
+    .replace(/&/g,"and")
+    .replace(/[^a-z0-9]+/g,"-")
+    .replace(/^-+|-+$/g,"");
 }
 
 
-function matchupKey(
-  away,
-  home
-){
-
-  return (
-    normalizeTeam(away)
-    +
-    "|"
-    +
-    normalizeTeam(home)
-  );
-
-}
-
-
-
-/* ==================================================
-   EXTRACT NOVIG CLOSE
-   ================================================== */
-
-
-function extractNovigClose(
-  segment,
-  teamName
-){
-
-  const escaped =
-    teamName
-      .replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      );
-
-
-  const headerRegex =
-    new RegExp(
-      "####\\\\s+(?:\\\\[\\\\d+†)?"
-      +
-      escaped
-      +
-      "(?:\\\\])?\\\\s+Moneyline at Close",
-      "i"
-    );
-
-
-  const headerMatch =
-    segment.match(
-      headerRegex
-    );
-
-
-  if(
-    !headerMatch
-  ){
-
-    return null;
-
-  }
-
-
-  const start =
-    headerMatch.index
-    +
-    headerMatch[0].length;
-
-
-  const after =
-    segment.slice(
-      start
-    );
-
-
-  const nextSection =
-    after.search(
-      /\n####\s/
-    );
-
-
-  const block =
-    nextSection >= 0
-    ?
-    after.slice(
-      0,
-      nextSection
-    )
-    :
-    after;
-
-
-  const patterns = [
-
-    /Novig\s*\|\s*([+-]\d+)/i,
-
-    /Novig\s+([+-]\d+)/i,
-
-    /\|\s*Novig\s*\|\s*([+-]\d+)/i
-
-  ];
-
-
-  for(
-    const pattern
-    of
-    patterns
-  ){
-
-    const match =
-      block.match(
-        pattern
-      );
-
-
-    if(match){
-
-      return Number(
-        match[1]
-      );
-
-    }
-
-  }
-
-
-  return null;
-
-}
-
-
-
-/* ==================================================
-   PARSE THE ODDS GAP
-
-   Jina headings often look like:
-
-   ### [46†Cleveland Browns at Tennessee Titans]
-
-   instead of:
-
-   ### Cleveland Browns at Tennessee Titans
-   ================================================== */
-
-
-let closingOddsMap =
-  new Map();
-
-
-let oddsLoadedAt =
-  null;
-
-
-function parseOddsGap(rawText){
-
-  const text =
-    rawText.replaceAll(
-      "−",
-      "-"
-    );
-
-
-  const map =
-    new Map();
-
-
-  /*
-    Accept BOTH:
-
-    ### Cleveland Browns at Tennessee Titans
-
-    and
-
-    ### [46†Cleveland Browns at Tennessee Titans]
-  */
-
-
-  const headingRegex =
-    /^###\s+(?:\[\d+†)?(.+?)\s+at\s+(.+?)(?:\])?\s*$/gm;
-
-
-  const matches =
-    [
-      ...text.matchAll(
-        headingRegex
-      )
-    ];
-
-
-  for(
-    let i = 0;
-    i < matches.length;
-    i++
-  ){
-
-    let away =
-      matches[i][1]
-        .trim();
-
-
-    let home =
-      matches[i][2]
-        .trim();
-
-
-    away =
-      away
-        .replace(
-          /^\[\d+†/,
-          ""
-        )
-        .replace(
-          /\]$/,
-          ""
-        )
-        .trim();
-
-
-    home =
-      home
-        .replace(
-          /^\[\d+†/,
-          ""
-        )
-        .replace(
-          /\]$/,
-          ""
-        )
-        .trim();
-
-
-    const start =
-      matches[i].index;
-
-
-    const end =
-      i + 1 < matches.length
-      ?
-      matches[i+1].index
-      :
-      text.length;
-
-
-    const segment =
-      text.slice(
-        start,
-        end
-      );
-
-
-    /*
-      Do not use future/current odds.
-      Require an actual frozen
-      "Moneyline at Close" section.
-    */
-
-
-    if(
-      !/Moneyline at Close/i.test(
-        segment
-      )
-    ){
-
-      continue;
-
-    }
-
-
-    const awayML =
-      extractNovigClose(
-        segment,
-        away
-      );
-
-
-    const homeML =
-      extractNovigClose(
-        segment,
-        home
-      );
-
-
-    if(
-      awayML === null ||
-      homeML === null
-    ){
-
-      continue;
-
-    }
-
-
-    map.set(
-
-      matchupKey(
-        away,
-        home
-      ),
-
-      {
-
-        away,
-        home,
-        awayML,
-        homeML
-
-      }
-
-    );
-
-  }
-
-
-  console.log(
-    "Closing matchups parsed:",
-    map.size,
-    [
-      ...map.entries()
-    ]
-  );
-
-
-  return map;
-
-}
-
-
-
-/* ==================================================
-   LOAD CLOSING LINES
-   ================================================== */
-
-
-async function refreshClosingOdds(){
-
-  try{
-
-    const url =
-      ODDS_GAP_READER
-      +
-      "?_="
-      +
-      Date.now();
-
-
-    const response =
-      await fetch(
-        url,
-        {
-          cache:"no-store"
-        }
-      );
-
-
-    if(
-      !response.ok
-    ){
-
-      throw new Error(
-        "Odds HTTP "
-        +
-        response.status
-      );
-
-    }
-
-
-    const text =
-      await response.text();
-
-
-    const parsed =
-      parseOddsGap(
-        text
-      );
-
-
-    if(
-      parsed.size > 0
-    ){
-
-      closingOddsMap =
-        parsed;
-
-
-      oddsLoadedAt =
-        new Date();
-
-    }
-
-
-    renderLiveGameList();
-
-    renderSelectedLiveGame();
-
-  }
-
-  catch(error){
-
-    console.error(
-      "Closing line error",
-      error
-    );
-
-  }
-
-}
-
-
-
-/* ==================================================
-   ESPN CLOCK
-   ================================================== */
-
-
-function clockToSeconds(clock){
-
-  if(
-    !clock ||
-    !clock.includes(":")
-  ){
-
-    return 0;
-
-  }
-
-
-  const p =
-    clock.split(":");
-
-
-  return (
-    Number(p[0]) * 60
-    +
-    Number(p[1])
-  );
-
-}
-
-
-function regulationSecondsRemaining(
-  period,
-  clock
-){
-
-  if(
-    period < 1 ||
-    period > 4
-  ){
-
-    return null;
-
-  }
-
-
-  return (
-    (4-period) * 900
-    +
-    clockToSeconds(
-      clock
-    )
-  );
-
-}
-
-
-
-/* ==================================================
-   LIVE GAME STATE
-   ================================================== */
-
-
-function findSide(
-  competition,
-  side
-){
-
-  return competition
-    .competitors
-    .find(
-      c =>
-        c.homeAway === side
-    );
-
-}
-
-
-function buildLiveState(
-  event
-){
-
-  const competition =
-    event.competitions[0];
-
-
-  const status =
-    competition.status;
-
-
-  const home =
-    findSide(
-      competition,
-      "home"
-    );
-
-
-  const away =
-    findSide(
-      competition,
-      "away"
-    );
-
-
-  if(
-    !home ||
-    !away
-  ){
-
-    return null;
-
-  }
-
-
-  const awayName =
-    away.team.displayName;
-
-
-  const homeName =
-    home.team.displayName;
-
-
-  const key =
-    matchupKey(
-      awayName,
-      homeName
-    );
-
-
-  const closing =
-    closingOddsMap.get(
-      key
-    );
-
-
-  const situation =
-    competition.situation
-    ||
-    {};
-
-
-  const possessionId =
-    situation.possession
-    ?
-    String(
-      situation.possession
-    )
-    :
-    null;
-
-
-  const secondsRemaining =
-    regulationSecondsRemaining(
-      status.period,
-      status.displayClock
-    );
-
-
-  const basic =
-    {
-
-      id:
-        event.id,
-
-      awayName,
-
-      homeName,
-
-      awayAbbr:
-        away.team.abbreviation,
-
-      homeAbbr:
-        home.team.abbreviation,
-
-      awayScore:
-        Number(
-          away.score
-        ),
-
-      homeScore:
-        Number(
-          home.score
-        ),
-
-      period:
-        status.period,
-
-      clock:
-        status.displayClock,
-
-      detail:
-        status.type.detail,
-
-      possessionId,
-
-      secondsRemaining,
-
-      lastPlay:
-        situation.lastPlay
-        &&
-        situation.lastPlay.text
-        ?
-        situation.lastPlay.text
-        :
-        ""
-
-    };
-
-
-  if(
-    !closing
-  ){
-
-    return {
-
-      ...basic,
-
-      closingFound:false
-
-    };
-
-  }
-
-
-  const awayRaw =
-    americanToImplied(
-      closing.awayML
-    );
-
-
-  const homeRaw =
-    americanToImplied(
-      closing.homeML
-    );
-
-
-  if(
-    awayRaw === null ||
-    homeRaw === null
-  ){
-
-    return {
-
-      ...basic,
-
-      closingFound:false
-
-    };
-
-  }
-
-
-  const total =
-    awayRaw
-    +
-    homeRaw;
-
-
-  const awayPregame =
-    awayRaw /
-    total;
-
-
-  const homePregame =
-    homeRaw /
-    total;
-
-
-  let favorite;
-
-  let opponent;
-
-  let favoriteML;
-
-  let opponentML;
-
-  let pregameProbability;
-
-  let favoriteScore;
-
-  let opponentScore;
-
-
-  if(
-    homePregame >=
-    awayPregame
-  ){
-
-    favorite =
-      home;
-
-
-    opponent =
-      away;
-
-
-    favoriteML =
-      closing.homeML;
-
-
-    opponentML =
-      closing.awayML;
-
-
-    pregameProbability =
-      homePregame;
-
-
-    favoriteScore =
-      Number(
-        home.score
-      );
-
-
-    opponentScore =
-      Number(
-        away.score
-      );
-
-  }
-
-  else{
-
-    favorite =
-      away;
-
-
-    opponent =
-      home;
-
-
-    favoriteML =
-      closing.awayML;
-
-
-    opponentML =
-      closing.homeML;
-
-
-    pregameProbability =
-      awayPregame;
-
-
-    favoriteScore =
-      Number(
-        away.score
-      );
-
-
-    opponentScore =
-      Number(
-        home.score
-      );
-
-  }
-
-
-  const scoreDiff =
-    favoriteScore
-    -
-    opponentScore;
-
-
-  const possessionKnown =
-    possessionId !== null;
-
-
-  const favoriteHasBall =
-    possessionKnown
-    &&
-    String(
-      favorite.id
-    ) ===
-    possessionId;
-
-
-  let possessionName =
-    "Unknown";
-
-
-  if(
-    possessionId ===
-    String(
-      home.id
-    )
-  ){
-
-    possessionName =
-      home.team.shortDisplayName;
-
-  }
-
-
-  if(
-    possessionId ===
-    String(
-      away.id
-    )
-  ){
-
-    possessionName =
-      away.team.shortDisplayName;
-
-  }
-
-
-  let probability =
-    null;
-
-
-  if(
-    possessionKnown
-    &&
-    secondsRemaining !== null
-  ){
-
-    probability =
-      nflProbability(
-
-        pregameProbability,
-
-        secondsRemaining /
-        60,
-
-        scoreDiff,
-
-        favoriteHasBall
-
-      );
-
-  }
-
-
-  return {
-
-    ...basic,
-
-    closingFound:true,
-
-    favoriteName:
-      favorite.team.shortDisplayName,
-
-    favoriteId:
-      String(
-        favorite.id
-      ),
-
-    opponentName:
-      opponent.team.shortDisplayName,
-
-    favoriteML,
-
-    opponentML,
-
-    pregameProbability,
-
-    scoreDiff,
-
-    possessionKnown,
-
-    favoriteHasBall,
-
-    possessionName,
-
-    probability,
-
-    breakEven:
-      probability === null
-      ?
-      null
-      :
-      breakEvenCents(
-        probability
-      )
-
-  };
-
-}
-
-
-
-/* ==================================================
-   LIVE DATA
-   ================================================== */
-
-
-let liveGames =
-  [];
-
-
-let selectedGameId =
-  null;
-
-
-async function refreshLiveGames(){
-
-  const statusBox =
-    document.getElementById(
-      "liveStatus"
-    );
-
-
-  try{
-
-    const url =
-      ESPN_SCOREBOARD
-      +
-      "?limit=100&_="
-      +
-      Date.now();
-
-
-    const response =
-      await fetch(
-        url,
-        {
-          cache:"no-store"
-        }
-      );
-
-
-    if(
-      !response.ok
-    ){
-
-      throw new Error(
-        "ESPN HTTP "
-        +
-        response.status
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    const games =
-      [];
-
-
-    for(
-      const event
-      of
-      data.events || []
-    ){
-
-      const competition =
-        event.competitions
-        &&
-        event.competitions[0];
-
-
-      if(
-        !competition
-        ||
-        competition
-          .status
-          .type
-          .state
-          !==
-          "in"
-      ){
-
-        continue;
-
-      }
-
-
-      const state =
-        buildLiveState(
-          event
-        );
-
-
-      if(state){
-
-        games.push(
-          state
-        );
-
-      }
-
-    }
-
-
-    liveGames =
-      games;
-
-
-    if(
-      selectedGameId === null
-      &&
-      games.length > 0
-    ){
-
-      selectedGameId =
-        games[0].id;
-
-    }
-
-
-    if(
-      selectedGameId !== null
-      &&
-      !games.some(
-        g =>
-          g.id ===
-          selectedGameId
-      )
-    ){
-
-      selectedGameId =
-        games.length > 0
-        ?
-        games[0].id
-        :
-        null;
-
-    }
-
-
-    const linesFound =
-      games.filter(
-        g =>
-          g.closingFound
-      ).length;
-
-
-    statusBox.className =
-      "liveStatus good";
-
-
-    statusBox.textContent =
-      "Live feed connected • "
-      +
-      games.length
-      +
-      " games • "
-      +
-      linesFound
-      +
-      " closing lines matched";
-
-
-    renderLiveGameList();
-
-    renderSelectedLiveGame();
-
-  }
-
-  catch(error){
-
-    statusBox.className =
-      "liveStatus bad";
-
-
-    statusBox.textContent =
-      "Live feed error: "
-      +
-      error.message;
-
-
-    console.error(
-      error
-    );
-
-  }
-
-}
-
-
-
-/* ==================================================
-   LIVE DISPLAY
-   ================================================== */
-
-
-function renderLiveGameList(){
-
-  const container =
-    document.getElementById(
-      "gameList"
-    );
-
-
-  container.innerHTML =
-    "";
-
-
-  for(
-    const game
-    of
-    liveGames
-  ){
-
-    const button =
-      document.createElement(
-        "button"
-      );
-
-
-    button.className =
-      "gameButton";
-
-
-    if(
-      game.id ===
-      selectedGameId
-    ){
-
-      button.classList.add(
-        "active"
-      );
-
-    }
-
-
-    const lineStatus =
-      game.closingFound
-      ?
-      "Closing line loaded"
-      :
-      "Closing line loading…";
-
-
-    button.innerHTML =
-
-      '<div class="teams">'
-      +
-      game.awayAbbr
-      +
-      " "
-      +
-      game.awayScore
-      +
-      " — "
-      +
-      game.homeAbbr
-      +
-      " "
-      +
-      game.homeScore
-      +
-      "</div>"
-
-      +
-
-      '<div class="state">'
-      +
-      game.clock
-      +
-      " • Q"
-      +
-      game.period
-      +
-      " • "
-      +
-      lineStatus
-      +
-      "</div>";
-
-
-    button.addEventListener(
-      "click",
-      ()=>{
-
-        selectedGameId =
-          game.id;
-
-        renderLiveGameList();
-
-        renderSelectedLiveGame();
-
-      }
-    );
-
-
-    container.appendChild(
-      button
-    );
-
-  }
-
-}
-
-
-function renderSelectedLiveGame(){
-
-  const area =
-    document.getElementById(
-      "liveGameArea"
-    );
-
-
-  if(
-    !selectedGameId
-  ){
-
-    area.classList.add(
-      "hidden"
-    );
-
-    return;
-
-  }
-
-
-  const game =
-    liveGames.find(
-      g =>
-        g.id ===
-        selectedGameId
-    );
-
-
-  if(
-    !game
-  ){
-
-    area.classList.add(
-      "hidden"
-    );
-
-    return;
-
-  }
-
-
-  area.classList.remove(
-    "hidden"
-  );
-
-
-  document.getElementById(
-    "liveTeams"
-  ).textContent =
-    game.awayName
-    +
-    " at "
-    +
-    game.homeName;
-
-
-  document.getElementById(
-    "liveScore"
-  ).textContent =
-    game.awayScore
-    +
-    " – "
-    +
-    game.homeScore;
-
-
-  document.getElementById(
-    "liveClock"
-  ).textContent =
-    game.clock
-    +
-    " • Q"
-    +
-    game.period;
-
-
-  const favorite =
-    document.getElementById(
-      "liveFavorite"
-    );
-
-
-  const moneyline =
-    document.getElementById(
-      "liveMoneyline"
-    );
-
-
-  const pregame =
-    document.getElementById(
-      "livePregame"
-    );
-
-
-  const diff =
-    document.getElementById(
-      "liveDiff"
-    );
-
-
-  const possession =
-    document.getElementById(
-      "livePossession"
-    );
-
-
-  const price =
-    document.getElementById(
-      "liveBreakEven"
-    );
-
-
-  const winProb =
-    document.getElementById(
-      "liveWinProb"
-    );
-
-
-  if(
-    !game.closingFound
-  ){
-
-    favorite.textContent =
-      "Waiting for closing line";
-
-
-    moneyline.textContent =
-      "—";
-
-
-    pregame.textContent =
-      "—";
-
-
-    diff.textContent =
-      "—";
-
-
-    possession.textContent =
-      game.possessionId
-      ?
-      "Live possession detected"
-      :
-      "Unknown";
-
-
-    price.textContent =
-      "—";
-
-
-    winProb.textContent =
-      "Waiting for closing line";
-
-  }
-
-  else{
-
-    favorite.textContent =
-      game.favoriteName;
-
-
-    moneyline.textContent =
-      formatML(
-        game.favoriteML
-      );
-
-
-    pregame.textContent =
-      formatPercent(
-        game.pregameProbability
-      );
-
-
-    diff.textContent =
-      formatDiff(
-        game.scoreDiff
-      );
-
-
-    possession.textContent =
-      game.possessionKnown
-      ?
-      (
-        game.possessionName
-        +
-        (
-          game.favoriteHasBall
-          ?
-          " — favorite"
-          :
-          " — opponent"
-        )
-      )
-      :
-      "Unknown";
-
-
-    if(
-      game.probability !== null
-    ){
-
-      price.textContent =
-        formatPrice(
-          game.breakEven
-        );
-
-
-      winProb.textContent =
-        "Modeled favorite win probability: "
-        +
-        formatPercent(
-          game.probability
-        );
-
-    }
-
-    else{
-
-      price.textContent =
-        "—";
-
-
-      winProb.textContent =
-        "Waiting for possession data";
-
-    }
-
-  }
-
-
-  document.getElementById(
-    "lastPlay"
-  ).textContent =
-    game.lastPlay
-    ?
-    "Last play: "
-    +
-    game.lastPlay
-    :
-    "";
-
-
-  document.getElementById(
-    "refreshLine"
-  ).textContent =
-    "Live state refreshes every 5 seconds"
-    +
-    (
-      oddsLoadedAt
-      ?
-      " • Closing lines loaded "
-      +
-      oddsLoadedAt.toLocaleTimeString()
-      :
-      ""
-    );
-
-}
-
-
-
-/* ==================================================
-   MANUAL MODE
-   ================================================== */
-
-
-let manualSport =
-  "nfl";
-
-
-let probabilityLabel =
-  "50–64%";
-
-
-let minutesRemaining =
-  30;
-
-
-let scoreDifferential =
-  0;
-
-
-let manualPossession =
-  "favorite";
-
-
-const probButtons =
-  document.getElementById(
-    "probButtons"
-  );
-
-
-function currentManualModel(){
-
-  return manualSport === "nfl"
-  ?
-  NFL_MODEL
-  :
-  CFB_MODEL;
-
-}
-
-
-function renderProbabilityButtons(){
-
-  const labels =
-    Object.keys(
-      currentManualModel()
-        .probabilities
-    );
-
-
-  if(
-    !labels.includes(
-      probabilityLabel
-    )
-  ){
-
-    probabilityLabel =
-      labels[0];
-
-  }
-
-
-  probButtons.innerHTML =
-    "";
-
-
-  for(
-    const label
-    of
-    labels
-  ){
-
-    const button =
-      document.createElement(
-        "button"
-      );
-
-
-    button.textContent =
-      label;
-
-
-    if(
-      label ===
-      probabilityLabel
-    ){
-
-      button.classList.add(
-        "active"
-      );
-
-    }
-
-
-    button.addEventListener(
-      "click",
-      ()=>{
-
-        probabilityLabel =
-          label;
-
-        renderProbabilityButtons();
-
-        renderManualResult();
-
-      }
-    );
-
-
-    probButtons.appendChild(
-      button
-    );
-
-  }
-
-}
-
-
-function renderManualResult(){
-
-  document.getElementById(
-    "timeValue"
-  ).textContent =
-    minutesRemaining
-    +
-    " min";
-
-
-  document.getElementById(
-    "scoreValue"
-  ).textContent =
-    formatDiff(
-      scoreDifferential
-    );
-
-
-  const model =
-    currentManualModel();
-
-
-  const pregame =
-    model.probabilities[
-      probabilityLabel
-    ];
-
-
-  let probability;
-
-
-  if(
-    manualSport === "nfl"
-  ){
-
-    probability =
-      nflProbability(
-        pregame,
-        minutesRemaining,
-        scoreDifferential,
-        manualPossession ===
-          "favorite"
-      );
-
-  }
-
-  else{
-
-    probability =
-      collegeProbability(
-        pregame,
-        minutesRemaining,
-        scoreDifferential
-      );
-
-  }
-
-
-  document.getElementById(
-    "breakEven"
-  ).textContent =
-    formatPrice(
-      breakEvenCents(
-        probability
-      )
-    );
-
-
-  document.getElementById(
-    "winProb"
-  ).textContent =
-    "Modeled favorite win probability: "
-    +
-    formatPercent(
-      probability
-    );
-
-}
-
-
-function renderPossessionSection(){
-
-  document.getElementById(
-    "possessionSection"
-  ).classList.toggle(
-    "hidden",
-    manualSport !== "nfl"
-  );
-
-}
-
-
-
-/* ==================================================
-   MODE BUTTONS
-   ================================================== */
-
-
-const liveModeButton =
-  document.getElementById(
-    "liveModeButton"
-  );
-
-
-const manualModeButton =
-  document.getElementById(
-    "manualModeButton"
-  );
-
-
-liveModeButton.addEventListener(
-  "click",
-  ()=>{
-
-    liveModeButton.classList.add(
-      "active"
-    );
-
-    manualModeButton.classList.remove(
-      "active"
-    );
-
-    document.getElementById(
-      "liveSection"
-    ).classList.remove(
-      "hidden"
-    );
-
-    document.getElementById(
-      "manualSection"
-    ).classList.add(
-      "hidden"
-    );
-
-  }
-);
-
-
-manualModeButton.addEventListener(
-  "click",
-  ()=>{
-
-    manualModeButton.classList.add(
-      "active"
-    );
-
-    liveModeButton.classList.remove(
-      "active"
-    );
-
-    document.getElementById(
-      "manualSection"
-    ).classList.remove(
-      "hidden"
-    );
-
-    document.getElementById(
-      "liveSection"
-    ).classList.add(
-      "hidden"
-    );
-
-    renderManualResult();
-
-  }
-);
-
-
-
-/* ==================================================
-   MANUAL CONTROLS
-   ================================================== */
-
-
-document
-  .querySelectorAll(
-    "#sportButtons button"
-  )
-  .forEach(
-    button=>{
-
-      button.addEventListener(
-        "click",
-        ()=>{
-
-          manualSport =
-            button.dataset.sport;
-
-
-          document
-            .querySelectorAll(
-              "#sportButtons button"
-            )
-            .forEach(
-              b =>
-                b.classList.toggle(
-                  "active",
-                  b === button
-                )
-            );
-
-
-          probabilityLabel =
-            Object.keys(
-              currentManualModel()
-                .probabilities
-            )[0];
-
-
-          renderProbabilityButtons();
-
-          renderPossessionSection();
-
-          renderManualResult();
-
-        }
-      );
-
-    }
-  );
-
-
-document
-  .querySelectorAll(
-    "#possessionButtons button"
-  )
-  .forEach(
-    button=>{
-
-      button.addEventListener(
-        "click",
-        ()=>{
-
-          manualPossession =
-            button.dataset.possession;
-
-
-          document
-            .querySelectorAll(
-              "#possessionButtons button"
-            )
-            .forEach(
-              b =>
-                b.classList.toggle(
-                  "active",
-                  b === button
-                )
-            );
-
-
-          renderManualResult();
-
-        }
-      );
-
-    }
-  );
-
-
-document.getElementById(
-  "timeSlider"
-).addEventListener(
-  "input",
-  event=>{
-
-    minutesRemaining =
-      Number(
-        event.target.value
-      );
-
-    renderManualResult();
-
-  }
-);
-
-
-document.getElementById(
-  "scoreSlider"
-).addEventListener(
-  "input",
-  event=>{
-
-    scoreDifferential =
-      Number(
-        event.target.value
-      );
-
-    renderManualResult();
-
-  }
-);
-
-
-
-/* ==================================================
-   START
-   ================================================== */
-
-
-renderProbabilityButtons();
-
-renderPossessionSection();
-
-renderManualResult();
-
-
-refreshClosingOdds()
-  .then(
-    refreshLiveGames
-  );
-
-
-setInterval(
-  refreshLiveGames,
-  LIVE_REFRESH_MS
-);
-
-
-setInterval(
-  refreshClosingOdds,
-  ODDS_REFRESH_MS
-);
-
-</script>
-
-</body>
-</html>
+function easternDateString(isoDate){
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en
