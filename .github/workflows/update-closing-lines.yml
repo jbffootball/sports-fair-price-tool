@@ -3,8 +3,17 @@ name: Update NFL Pregame Odds
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 13-23 * * 0"
-    - cron: "*/5 22-23 * * 1,4"
+    # Sunday daytime + Sunday night
+    - cron: "*/5 15-23 * * 0"
+    - cron: "*/5 0-6 * * 1"
+
+    # Monday night
+    - cron: "*/5 22-23 * * 1"
+    - cron: "*/5 0-6 * * 2"
+
+    # Thursday night
+    - cron: "*/5 22-23 * * 4"
+    - cron: "*/5 0-6 * * 5"
 
 permissions:
   contents: write
@@ -24,15 +33,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Capture verified NFL pregame odds
+      - name: Capture and backfill verified NFL pregame odds
         shell: bash
         run: |
           python - <<'PY'
           import json
           import re
           import subprocess
-          import urllib.request
           import urllib.parse
+          import urllib.request
 
           from datetime import datetime, timezone
           from pathlib import Path
@@ -46,72 +55,152 @@ jobs:
               "sports/football/nfl/scoreboard"
           )
 
-          JINA = "https://r.jina.ai/http://"
-
           SEARCH = (
               "https://html.duckduckgo.com/html/?q="
           )
 
+          JINA = (
+              "https://r.jina.ai/http://"
+          )
+
+
+          # -------------------------------------------------
+          # FETCH HELPERS
+          # -------------------------------------------------
 
           def fetch_text(url):
-              req = urllib.request.Request(
+
+              request = urllib.request.Request(
                   url,
                   headers={
-                      "User-Agent": "Mozilla/5.0",
-                      "Accept": "*/*",
+                      "User-Agent":
+                          "Mozilla/5.0 "
+                          "(Football Fair Price Lookup)",
+                      "Accept":
+                          "text/html,application/json,text/plain,*/*",
                   },
               )
 
               with urllib.request.urlopen(
-                  req,
+                  request,
                   timeout=30,
-              ) as r:
-                  return r.read().decode(
+              ) as response:
+
+                  return response.read().decode(
                       "utf-8",
                       errors="replace",
                   )
 
 
           def fetch_json(url):
-              text = fetch_text(url)
+
+              text = fetch_text(
+                  url
+              )
 
               if not text.strip():
+
                   raise RuntimeError(
                       "Empty response from "
-                      + url
+                      +
+                      url
                   )
 
-              return json.loads(text)
 
+              try:
+
+                  return json.loads(
+                      text
+                  )
+
+              except Exception:
+
+                  print(
+                      "BAD JSON FROM:"
+                  )
+
+                  print(
+                      url
+                  )
+
+                  print(
+                      text[:500]
+                  )
+
+                  raise
+
+
+          # -------------------------------------------------
+          # EXISTING JSON RECOVERY
+          # -------------------------------------------------
 
           def valid_json(text):
-              try:
-                  data = json.loads(text)
-              except Exception:
+
+              if not text:
                   return None
 
-              if not isinstance(data, dict):
+
+              try:
+
+                  data = json.loads(
+                      text
+                  )
+
+              except Exception:
+
                   return None
+
 
               if not isinstance(
-                  data.get("games", {}),
+                  data,
                   dict,
               ):
+
                   return None
+
+
+              if not isinstance(
+                  data.get(
+                      "games",
+                      {},
+                  ),
+                  dict,
+              ):
+
+                  return None
+
 
               return data
 
 
           def recover_existing():
+
               if OUT.exists():
+
                   current = valid_json(
                       OUT.read_text(
                           errors="replace"
                       )
                   )
 
-                  if current:
+
+                  if current is not None:
+
+                      print(
+                          "Current closing-lines.json valid."
+                      )
+
                       return current
+
+
+              print(
+                  "Current JSON invalid or empty."
+              )
+
+              print(
+                  "Searching Git history."
+              )
+
 
               result = subprocess.run(
                   [
@@ -125,11 +214,16 @@ jobs:
                   text=True,
               )
 
+
               for sha in result.stdout.splitlines():
+
                   sha = sha.strip()
 
+
                   if not sha:
+
                       continue
+
 
                   show = subprocess.run(
                       [
@@ -141,19 +235,43 @@ jobs:
                       text=True,
                   )
 
+
                   if show.returncode != 0:
+
                       continue
+
 
                   recovered = valid_json(
                       show.stdout
                   )
 
+
                   if (
                       recovered
                       and
-                      recovered.get("games")
+                      recovered.get(
+                          "games"
+                      )
                   ):
+
+                      print(
+                          "Recovered",
+                          len(
+                              recovered[
+                                  "games"
+                              ]
+                          ),
+                          "games from",
+                          sha,
+                      )
+
                       return recovered
+
+
+              print(
+                  "No valid historical JSON found."
+              )
+
 
               return {
                   "updated_at": None,
@@ -161,80 +279,135 @@ jobs:
               }
 
 
-          def implied(ml):
-              ml = int(ml)
+          # -------------------------------------------------
+          # MONEYLINE MATH
+          # -------------------------------------------------
 
-              if ml < 0:
+          def implied_probability(
+              moneyline
+          ):
+
+              moneyline = int(
+                  moneyline
+              )
+
+
+              if moneyline < 0:
+
                   return (
-                      -ml
+                      -moneyline
                       /
                       (
-                          -ml + 100
+                          -moneyline
+                          +
+                          100
                       )
                   )
+
 
               return (
                   100
                   /
                   (
-                      ml + 100
+                      moneyline
+                      +
+                      100
                   )
               )
 
 
-          def no_vig(
+          def no_vig_probabilities(
               away_ml,
               home_ml,
           ):
-              a = implied(
+
+              away_raw = implied_probability(
                   away_ml
               )
 
-              h = implied(
+              home_raw = implied_probability(
                   home_ml
               )
 
-              total = a + h
 
-              return (
-                  a / total,
-                  h / total,
+              total = (
+                  away_raw
+                  +
+                  home_raw
               )
 
+
+              return (
+                  away_raw
+                  /
+                  total,
+
+                  home_raw
+                  /
+                  total,
+              )
+
+
+          # -------------------------------------------------
+          # ESPN ODDS
+          # -------------------------------------------------
 
           def extract_espn_odds(
               competition
           ):
-              for item in (
-                  competition.get("odds")
+
+              odds_list = (
+                  competition.get(
+                      "odds"
+                  )
                   or
                   []
-              ):
+              )
+
+
+              for item in odds_list:
+
                   away = (
-                      item.get("awayTeamOdds")
+                      item.get(
+                          "awayTeamOdds"
+                      )
                       or
                       {}
                   )
 
                   home = (
-                      item.get("homeTeamOdds")
+                      item.get(
+                          "homeTeamOdds"
+                      )
                       or
                       {}
                   )
 
+
                   away_ml = (
-                      away.get("moneyLine")
+                      away.get(
+                          "moneyLine"
+                      )
                       or
-                      away.get("moneyline")
+                      away.get(
+                          "moneyline"
+                      )
                   )
+
 
                   home_ml = (
-                      home.get("moneyLine")
+                      home.get(
+                          "moneyLine"
+                      )
                       or
-                      home.get("moneyline")
+                      home.get(
+                          "moneyline"
+                      )
                   )
 
+
                   try:
+
                       away_ml = int(
                           away_ml
                       )
@@ -242,27 +415,38 @@ jobs:
                       home_ml = int(
                           home_ml
                       )
+
                   except Exception:
+
                       continue
 
+
                   if (
-                      away_ml
+                      away_ml != 0
                       and
-                      home_ml
+                      home_ml != 0
                   ):
+
                       return (
                           away_ml,
                           home_ml,
                       )
 
+
               return None
 
 
+          # -------------------------------------------------
+          # SEARCH
+          # -------------------------------------------------
+
           def search_urls(
               query,
-              domain,
+              required_domain,
           ):
+
               try:
+
                   html = fetch_text(
                       SEARCH
                       +
@@ -270,101 +454,209 @@ jobs:
                           query
                       )
                   )
-              except Exception:
+
+              except Exception as exc:
+
+                  print(
+                      "Search failed:",
+                      exc,
+                  )
+
                   return []
 
+
               urls = []
+
 
               for encoded in re.findall(
                   r'uddg=([^"&]+)',
                   html,
               ):
-                  u = urllib.parse.unquote(
+
+                  candidate = urllib.parse.unquote(
                       encoded
                   )
 
+
                   if (
-                      domain in u
+                      required_domain
+                      in
+                      candidate
                       and
-                      u not in urls
+                      candidate not in urls
                   ):
-                      urls.append(u)
 
-              return urls[:6]
-
-
-          def team_nick(name):
-              return name.split()[-1]
+                      urls.append(
+                          candidate
+                      )
 
 
-          def parse_action_page(
+              return urls[:10]
+
+
+          # -------------------------------------------------
+          # ACTION NETWORK
+          # -------------------------------------------------
+
+          def nickname(
+              team_name
+          ):
+
+              return (
+                  team_name
+                  .split()[-1]
+              )
+
+
+          def clean_page_text(
+              text
+          ):
+
+              return (
+                  text
+                  .replace(
+                      "−",
+                      "-"
+                  )
+                  .replace(
+                      "–",
+                      "-"
+                  )
+                  .replace(
+                      "—",
+                      "-"
+                  )
+              )
+
+
+          def parse_action_network(
               text,
               away_name,
               home_name,
           ):
-              text = (
+
+              text = clean_page_text(
                   text
-                  .replace("−", "-")
-                  .replace("–", "-")
-                  .replace("—", "-")
               )
 
-              away = team_nick(
+
+              away_nick = nickname(
                   away_name
               )
 
-              home = team_nick(
+              home_nick = nickname(
                   home_name
               )
 
+
               if not re.search(
-                  r"Moneyline",
+                  re.escape(
+                      away_nick
+                  ),
                   text,
                   flags=re.I,
               ):
+
                   return None
 
-              def find_team_ml(team):
-                  patterns = [
-                      rf"{re.escape(team)}"
-                      rf"[^\n]{{0,160}}"
-                      rf"\|\s*([+-]\d{{3,4}})\s*$",
 
-                      rf"{re.escape(team)}"
-                      rf"[^\n]{{0,160}}"
-                      rf"Moneyline"
-                      rf"[^\n]{{0,80}}"
-                      rf"([+-]\d{{3,4}})",
-                  ]
+              if not re.search(
+                  re.escape(
+                      home_nick
+                  ),
+                  text,
+                  flags=re.I,
+              ):
 
-                  for p in patterns:
-                      m = re.search(
-                          p,
-                          text,
-                          flags=re.I | re.M,
+                  return None
+
+
+              #
+              # Look for lines containing a team
+              # plus a plausible American moneyline.
+              #
+
+              def find_team_ml(
+                  team
+              ):
+
+                  candidates = []
+
+
+                  for line in text.splitlines():
+
+                      if not re.search(
+                          re.escape(
+                              team
+                          ),
+                          line,
+                          flags=re.I,
+                      ):
+
+                          continue
+
+
+                      values = re.findall(
+                          r"(?<!\d)"
+                          r"([+-]\d{3,4})"
+                          r"(?!\d)",
+                          line,
                       )
 
-                      if m:
-                          return int(
-                              m.group(1)
+
+                      for value in values:
+
+                          ml = int(
+                              value
                           )
 
-                  return None
+
+                          if (
+                              abs(ml)
+                              >= 100
+                              and
+                              abs(ml)
+                              <= 2000
+                          ):
+
+                              candidates.append(
+                                  ml
+                              )
+
+
+                  if not candidates:
+
+                      return None
+
+
+                  #
+                  # Moneyline is generally the
+                  # last +/- 3-4 digit price on
+                  # Action Network's team row.
+                  #
+
+                  return candidates[
+                      -1
+                  ]
+
 
               away_ml = find_team_ml(
-                  away
+                  away_nick
               )
 
               home_ml = find_team_ml(
-                  home
+                  home_nick
               )
+
 
               if (
                   away_ml is None
                   or
                   home_ml is None
               ):
+
                   return None
+
 
               return (
                   away_ml,
@@ -372,110 +664,185 @@ jobs:
               )
 
 
-          def action_lookup(
+          def action_network_lookup(
               away_name,
               home_name,
               game_date,
           ):
-              query = (
-                  'site:actionnetwork.com/nfl-game '
-                  f'"{away_name}" '
-                  f'"{home_name}" '
-                  f'"{game_date}"'
-              )
 
-              urls = search_urls(
-                  query,
-                  "actionnetwork.com/nfl-game",
-              )
+              queries = [
 
-              for u in urls:
-                  clean_url = (
-                      u.split("?")[0]
+                  (
+                      "site:actionnetwork.com/nfl-game "
+                      f'"{away_name}" '
+                      f'"{home_name}"'
+                  ),
+
+                  (
+                      "site:actionnetwork.com/nfl "
+                      f'"{away_name}" '
+                      f'"{home_name}" '
+                      f'"{game_date}" '
+                      "moneyline"
+                  ),
+
+              ]
+
+
+              checked = set()
+
+
+              for query in queries:
+
+                  urls = search_urls(
+                      query,
+                      "actionnetwork.com",
                   )
 
-                  reader = (
-                      JINA
-                      +
-                      clean_url.replace(
-                          "https://",
-                          ""
-                      )
-                  )
 
-                  try:
-                      text = fetch_text(
-                          reader
-                      )
-                  except Exception:
-                      continue
+                  for url in urls:
 
-                  result = parse_action_page(
-                      text,
-                      away_name,
-                      home_name,
-                  )
-
-                  if result:
-                      return (
-                          result[0],
-                          result[1],
-                          clean_url,
+                      clean_url = (
+                          url
+                          .split("#")[0]
+                          .split("?")[0]
                       )
+
+
+                      if clean_url in checked:
+
+                          continue
+
+
+                      checked.add(
+                          clean_url
+                      )
+
+
+                      reader_url = (
+                          JINA
+                          +
+                          clean_url.replace(
+                              "https://",
+                              ""
+                          )
+                      )
+
+
+                      try:
+
+                          page = fetch_text(
+                              reader_url
+                          )
+
+                      except Exception:
+
+                          continue
+
+
+                      result = (
+                          parse_action_network(
+                              page,
+                              away_name,
+                              home_name,
+                          )
+                      )
+
+
+                      if result:
+
+                          return (
+                              result[
+                                  0
+                              ],
+                              result[
+                                  1
+                              ],
+                              clean_url,
+                          )
+
 
               return None
 
 
-          def parse_covers_page(
+          # -------------------------------------------------
+          # COVERS
+          # -------------------------------------------------
+
+          def parse_covers(
               text,
               away_name,
               home_name,
           ):
-              text = (
+
+              text = clean_page_text(
                   text
-                  .replace("−", "-")
-                  .replace("–", "-")
-                  .replace("—", "-")
               )
 
-              away = team_nick(
+
+              away_nick = nickname(
                   away_name
               )
 
-              home = team_nick(
+              home_nick = nickname(
                   home_name
               )
 
-              def find_ml(team):
-                  m = re.search(
-                      rf"{re.escape(team)}"
-                      rf"[^\n]{{0,120}}"
-                      rf"([+-]\d{{3,4}})",
-                      text,
-                      flags=re.I,
-                  )
 
-                  if m:
-                      return int(
-                          m.group(1)
+              def find_team_ml(
+                  team
+              ):
+
+                  for line in text.splitlines():
+
+                      if not re.search(
+                          re.escape(
+                              team
+                          ),
+                          line,
+                          flags=re.I,
+                      ):
+
+                          continue
+
+
+                      values = re.findall(
+                          r"(?<!\d)"
+                          r"([+-]\d{3,4})"
+                          r"(?!\d)",
+                          line,
                       )
+
+
+                      if values:
+
+                          return int(
+                              values[
+                                  -1
+                              ]
+                          )
+
 
                   return None
 
-              away_ml = find_ml(
-                  away
+
+              away_ml = find_team_ml(
+                  away_nick
               )
 
-              home_ml = find_ml(
-                  home
+              home_ml = find_team_ml(
+                  home_nick
               )
+
 
               if (
                   away_ml is None
                   or
                   home_ml is None
               ):
+
                   return None
+
 
               return (
                   away_ml,
@@ -488,24 +855,32 @@ jobs:
               home_name,
               game_date,
           ):
+
               query = (
-                  'site:covers.com/sport/football/nfl/matchup '
+                  "site:covers.com/sport/football/nfl "
                   f'"{away_name}" '
                   f'"{home_name}" '
-                  f'"{game_date}"'
+                  f'"{game_date}" '
+                  "moneyline"
               )
+
 
               urls = search_urls(
                   query,
-                  "covers.com/sport/football/nfl/matchup",
+                  "covers.com",
               )
 
-              for u in urls:
+
+              for url in urls:
+
                   clean_url = (
-                      u.split("?")[0]
+                      url
+                      .split("#")[0]
+                      .split("?")[0]
                   )
 
-                  reader = (
+
+                  reader_url = (
                       JINA
                       +
                       clean_url.replace(
@@ -514,28 +889,44 @@ jobs:
                       )
                   )
 
+
                   try:
-                      text = fetch_text(
-                          reader
+
+                      page = fetch_text(
+                          reader_url
                       )
+
                   except Exception:
+
                       continue
 
-                  result = parse_covers_page(
-                      text,
+
+                  result = parse_covers(
+                      page,
                       away_name,
                       home_name,
                   )
 
+
                   if result:
+
                       return (
-                          result[0],
-                          result[1],
+                          result[
+                              0
+                          ],
+                          result[
+                              1
+                          ],
                           clean_url,
                       )
 
+
               return None
 
+
+          # -------------------------------------------------
+          # MAIN
+          # -------------------------------------------------
 
           data = recover_existing()
 
@@ -544,7 +935,8 @@ jobs:
               {},
           )
 
-          original = json.dumps(
+
+          original_games = json.dumps(
               games,
               sort_keys=True,
           )
@@ -556,9 +948,11 @@ jobs:
               )
           )
 
+
           today = now_et.strftime(
               "%Y%m%d"
           )
+
 
           scoreboard = fetch_json(
               ESPN
@@ -569,8 +963,14 @@ jobs:
           )
 
 
-          now_utc = datetime.now(
-              timezone.utc
+          print(
+              "Today's ESPN events:",
+              len(
+                  scoreboard.get(
+                      "events",
+                      [],
+                  )
+              ),
           )
 
 
@@ -581,7 +981,8 @@ jobs:
               "events",
               [],
           ):
-              comps = (
+
+              competitions = (
                   event.get(
                       "competitions"
                   )
@@ -589,123 +990,167 @@ jobs:
                   []
               )
 
-              if not comps:
+
+              if not competitions:
+
                   continue
 
-              competition = comps[0]
+
+              competition = competitions[
+                  0
+              ]
+
 
               game_id = str(
-                  event.get("id")
-              )
-
-              if game_id in games:
-                  continue
-
-              kickoff = datetime.fromisoformat(
-                  event["date"].replace(
-                      "Z",
-                      "+00:00",
+                  event.get(
+                      "id"
                   )
               )
 
-              minutes_to_kickoff = (
-                  kickoff
-                  -
-                  now_utc
-              ).total_seconds() / 60
-
 
               #
-              # Capture only from 30 minutes
-              # before kickoff through kickoff.
+              # First verified pair wins forever.
               #
 
-              if (
-                  minutes_to_kickoff > 30
-                  or
-                  minutes_to_kickoff < -2
-              ):
+              if game_id in games:
+
+                  print(
+                      "Preserving existing:",
+                      game_id
+                  )
+
                   continue
 
 
               competitors = (
                   competition.get(
                       "competitors",
-                      []
+                      [],
                   )
               )
 
+
               away = next(
                   (
-                      c
-                      for c in competitors
-                      if c.get("homeAway")
+                      team
+                      for team in competitors
+                      if team.get(
+                          "homeAway"
+                      )
                       ==
                       "away"
                   ),
                   None,
               )
 
+
               home = next(
                   (
-                      c
-                      for c in competitors
-                      if c.get("homeAway")
+                      team
+                      for team in competitors
+                      if team.get(
+                          "homeAway"
+                      )
                       ==
                       "home"
                   ),
                   None,
               )
 
+
               if not away or not home:
+
                   continue
 
+
               away_name = (
-                  away.get(
+                  away
+                  .get(
                       "team",
-                      {}
-                  ).get(
+                      {},
+                  )
+                  .get(
                       "displayName"
                   )
               )
 
+
               home_name = (
-                  home.get(
+                  home
+                  .get(
                       "team",
-                      {}
-                  ).get(
+                      {},
+                  )
+                  .get(
                       "displayName"
                   )
               )
+
+
+              kickoff = datetime.fromisoformat(
+                  event[
+                      "date"
+                  ].replace(
+                      "Z",
+                      "+00:00",
+                  )
+              )
+
+
+              game_date = kickoff.astimezone(
+                  ZoneInfo(
+                      "America/New_York"
+                  )
+              ).strftime(
+                  "%B %d %Y"
+              )
+
+
+              state = (
+                  competition
+                  .get(
+                      "status",
+                      {},
+                  )
+                  .get(
+                      "type",
+                      {},
+                  )
+                  .get(
+                      "state"
+                  )
+              )
+
 
               print()
               print(
-                  "CAPTURE WINDOW:",
+                  "LOOKING UP:",
                   away_name,
                   "at",
                   home_name,
-                  round(
-                      minutes_to_kickoff,
-                      1
-                  ),
-                  "minutes to kickoff",
+                  "| state:",
+                  state,
               )
 
 
               result = None
+
               source = None
+
               source_url = None
 
 
-              #
+              # -----------------------------------------
               # 1. ESPN
-              #
+              # -----------------------------------------
 
               result = extract_espn_odds(
                   competition
               )
 
+
               if result:
+
                   source = (
                       "ESPN pregame moneyline"
                   )
@@ -715,29 +1160,30 @@ jobs:
                   )
 
 
-              #
-              # 2. Action Network
-              #
+              # -----------------------------------------
+              # 2. ACTION NETWORK
+              # -----------------------------------------
 
               if result is None:
-                  game_date = kickoff.astimezone(
-                      ZoneInfo(
-                          "America/New_York"
+
+                  action = (
+                      action_network_lookup(
+                          away_name,
+                          home_name,
+                          game_date,
                       )
-                  ).strftime(
-                      "%B %d %Y"
                   )
 
-                  action = action_lookup(
-                      away_name,
-                      home_name,
-                      game_date,
-                  )
 
                   if action:
+
                       result = (
-                          action[0],
-                          action[1],
+                          action[
+                              0
+                          ],
+                          action[
+                              1
+                          ],
                       )
 
                       source = (
@@ -745,33 +1191,36 @@ jobs:
                       )
 
                       source_url = (
-                          action[2]
+                          action[
+                              2
+                          ]
                       )
 
 
-              #
-              # 3. Covers
-              #
+              # -----------------------------------------
+              # 3. COVERS
+              # -----------------------------------------
 
               if result is None:
-                  game_date = kickoff.astimezone(
-                      ZoneInfo(
-                          "America/New_York"
+
+                  covers = (
+                      covers_lookup(
+                          away_name,
+                          home_name,
+                          game_date,
                       )
-                  ).strftime(
-                      "%B %d %Y"
                   )
 
-                  covers = covers_lookup(
-                      away_name,
-                      home_name,
-                      game_date,
-                  )
 
                   if covers:
+
                       result = (
-                          covers[0],
-                          covers[1],
+                          covers[
+                              0
+                          ],
+                          covers[
+                              1
+                          ],
                       )
 
                       source = (
@@ -779,21 +1228,32 @@ jobs:
                       )
 
                       source_url = (
-                          covers[2]
+                          covers[
+                              2
+                          ]
                       )
 
 
+              # -----------------------------------------
+              # STILL NOTHING
+              # -----------------------------------------
+
               if result is None:
+
                   print(
                       "PREGAME_ODDS_UNAVAILABLE"
                   )
+
                   continue
 
 
-              away_ml, home_ml = result
+              away_ml, home_ml = (
+                  result
+              )
+
 
               away_prob, home_prob = (
-                  no_vig(
+                  no_vig_probabilities(
                       away_ml,
                       home_ml,
                   )
@@ -801,20 +1261,22 @@ jobs:
 
 
               if home_prob >= away_prob:
+
                   favorite = (
                       home_name
                   )
 
-                  favorite_prob = (
+                  favorite_probability = (
                       home_prob
                   )
 
               else:
+
                   favorite = (
                       away_name
                   )
 
-                  favorite_prob = (
+                  favorite_probability = (
                       away_prob
                   )
 
@@ -822,6 +1284,7 @@ jobs:
               games[
                   game_id
               ] = {
+
                   "event_id":
                       game_id,
 
@@ -854,7 +1317,7 @@ jobs:
 
                   "favorite_probability":
                       round(
-                          favorite_prob,
+                          favorite_probability,
                           6,
                       ),
 
@@ -864,14 +1327,11 @@ jobs:
                   "source_url":
                       source_url,
 
-                  "captured_before_kickoff":
-                      round(
-                          minutes_to_kickoff,
-                          1,
-                      ),
-
                   "captured_at":
-                      now_utc.isoformat(),
+                      datetime.now(
+                          timezone.utc
+                      ).isoformat(),
+
               }
 
 
@@ -879,27 +1339,75 @@ jobs:
 
 
               print(
-                  "SAVED:",
+                  "SAVED:"
+              )
+
+              print(
+                  away_name,
                   away_ml,
+                  "/",
+                  home_name,
                   home_ml,
+              )
+
+              print(
+                  "Favorite:",
+                  favorite,
+                  round(
+                      favorite_probability
+                      *
+                      100,
+                      1,
+                  ),
+                  "%"
+              )
+
+              print(
+                  "Source:",
                   source,
               )
 
 
-          new = json.dumps(
+          # -------------------------------------------------
+          # SAVE
+          # -------------------------------------------------
+
+          new_games = json.dumps(
               games,
               sort_keys=True,
           )
 
 
-          if new != original:
+          current_valid = None
+
+
+          if OUT.exists():
+
+              current_valid = valid_json(
+                  OUT.read_text(
+                      errors="replace"
+                  )
+              )
+
+
+          if (
+              new_games
+              !=
+              original_games
+              or
+              current_valid is None
+          ):
+
               data[
                   "updated_at"
               ] = (
-                  datetime.now(
+                  datetime
+                  .now(
                       timezone.utc
-                  ).isoformat()
+                  )
+                  .isoformat()
               )
+
 
               OUT.write_text(
                   json.dumps(
@@ -911,16 +1419,33 @@ jobs:
                   "\n"
               )
 
+
+              print()
               print(
-                  "Saved",
-                  added,
-                  "new pregame line(s)."
+                  "closing-lines.json saved."
               )
 
+
           else:
+
+              print()
               print(
-                  "No new lines captured."
+                  "No JSON changes."
               )
+
+
+          print(
+              "Added this run:",
+              added,
+          )
+
+
+          print(
+              "Total stored:",
+              len(
+                  games
+              ),
+          )
 
           PY
 
@@ -940,6 +1465,6 @@ jobs:
 
           git add closing-lines.json
 
-          git commit -m "Capture NFL pregame odds"
+          git commit -m "Update verified NFL pregame odds"
 
           git push
