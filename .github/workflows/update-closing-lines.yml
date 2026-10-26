@@ -1,4 +1,4 @@
-name: Update NFL Closing Lines
+name: Update NFL Pregame Odds
 
 on:
   workflow_dispatch:
@@ -14,27 +14,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 30
+          fetch-depth: 50
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Repair and append NFL closing lines
+      - name: Find and append verified NFL pregame odds
         shell: bash
         run: |
           python - <<'PY'
+
           import json
           import re
           import subprocess
+          import urllib.parse
           import urllib.request
+
           from datetime import datetime, timezone
           from pathlib import Path
           from zoneinfo import ZoneInfo
+
 
           OUT = Path("closing-lines.json")
 
@@ -43,15 +48,86 @@ jobs:
               "sports/football/nfl/scoreboard"
           )
 
-          STATMUSE = (
-              "https://r.jina.ai/http://www.statmuse.com/"
-              "nfl/ask/nfl-moneylines"
-          )
+          JINA = "https://r.jina.ai/http://"
+
+          DDG = "https://html.duckduckgo.com/html/?q="
 
 
-          def valid_data(text):
-              if not text or not text.strip():
-                  return None
+          # ------------------------------------------------
+          # BASIC FETCH
+          # ------------------------------------------------
+
+          def fetch_text(url):
+
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "User-Agent":
+                          "Mozilla/5.0 "
+                          "(Football Fair Price Lookup)",
+                      "Accept":
+                          "text/html,application/json,text/plain,*/*",
+                  },
+              )
+
+              with urllib.request.urlopen(
+                  req,
+                  timeout=30,
+              ) as r:
+
+                  return r.read().decode(
+                      "utf-8",
+                      errors="replace",
+                  )
+
+
+          def fetch_json(url):
+
+              text = fetch_text(url)
+
+              if not text.strip():
+                  raise RuntimeError(
+                      "Empty response: " + url
+                  )
+
+              return json.loads(text)
+
+
+          # ------------------------------------------------
+          # MONEYLINE MATH
+          # ------------------------------------------------
+
+          def implied(ml):
+
+              ml = int(ml)
+
+              if ml < 0:
+                  return (-ml) / ((-ml) + 100)
+
+              return 100 / (ml + 100)
+
+
+          def fair_pair(
+              away_ml,
+              home_ml,
+          ):
+
+              a = implied(away_ml)
+              h = implied(home_ml)
+
+              total = a + h
+
+              return (
+                  a / total,
+                  h / total,
+              )
+
+
+          # ------------------------------------------------
+          # PRESERVE / RECOVER EXISTING JSON
+          # ------------------------------------------------
+
+          def valid_json(text):
 
               try:
                   data = json.loads(text)
@@ -73,25 +149,28 @@ jobs:
           def recover_existing():
 
               if OUT.exists():
-                  current = valid_data(
+
+                  current = valid_json(
                       OUT.read_text(
                           errors="replace"
                       )
                   )
 
                   if current is not None:
+
                       print(
-                          "Current closing-lines.json is valid."
+                          "Existing closing-lines.json valid."
                       )
+
                       return current
 
 
               print(
-                  "Current closing-lines.json is invalid or empty."
+                  "Current closing-lines.json invalid."
               )
 
               print(
-                  "Searching Git history for last valid copy..."
+                  "Recovering last valid copy from Git history."
               )
 
 
@@ -105,24 +184,22 @@ jobs:
                   ],
                   capture_output=True,
                   text=True,
-                  check=True,
               )
 
 
-              commits = [
-                  line.strip()
-                  for line in result.stdout.splitlines()
-                  if line.strip()
-              ]
+              for sha in result.stdout.splitlines():
 
+                  sha = sha.strip()
 
-              for commit in commits:
+                  if not sha:
+                      continue
+
 
                   show = subprocess.run(
                       [
                           "git",
                           "show",
-                          f"{commit}:closing-lines.json",
+                          f"{sha}:closing-lines.json",
                       ],
                       capture_output=True,
                       text=True,
@@ -133,40 +210,26 @@ jobs:
                       continue
 
 
-                  recovered = valid_data(
+                  old = valid_json(
                       show.stdout
                   )
 
 
                   if (
-                      recovered is not None
+                      old
                       and
-                      len(
-                          recovered.get(
-                              "games",
-                              {},
-                          )
-                      ) > 0
+                      old.get("games")
                   ):
 
                       print(
-                          "Recovered valid closing-lines.json from",
-                          commit,
+                          "Recovered",
+                          len(old["games"]),
+                          "games from",
+                          sha,
                       )
 
-                      print(
-                          "Recovered games:",
-                          len(
-                              recovered["games"]
-                          ),
-                      )
+                      return old
 
-                      return recovered
-
-
-              print(
-                  "No valid historical copy found."
-              )
 
               return {
                   "updated_at": None,
@@ -174,58 +237,169 @@ jobs:
               }
 
 
-          def fetch_text(url):
+          # ------------------------------------------------
+          # ESPN EMBEDDED PREGAME ODDS
+          # ------------------------------------------------
 
-              request = urllib.request.Request(
-                  url,
-                  headers={
-                      "User-Agent":
-                          "Mozilla/5.0",
-                      "Accept":
-                          "application/json,text/plain,text/html,*/*",
-                  },
+          def espn_odds(
+              competition
+          ):
+
+              odds_list = (
+                  competition.get("odds")
+                  or
+                  []
               )
 
-              with urllib.request.urlopen(
-                  request,
-                  timeout=30,
-              ) as response:
 
-                  return response.read().decode(
-                      "utf-8",
-                      errors="replace",
+              for odds in odds_list:
+
+                  away = (
+                      odds.get(
+                          "awayTeamOdds"
+                      )
+                      or
+                      {}
+                  )
+
+                  home = (
+                      odds.get(
+                          "homeTeamOdds"
+                      )
+                      or
+                      {}
                   )
 
 
-          def fetch_json(url):
+                  away_ml = (
+                      away.get("moneyLine")
+                      or
+                      away.get("moneyline")
+                  )
 
-              text = fetch_text(
-                  url
+                  home_ml = (
+                      home.get("moneyLine")
+                      or
+                      home.get("moneyline")
+                  )
+
+
+                  try:
+
+                      away_ml = int(
+                          away_ml
+                      )
+
+                      home_ml = int(
+                          home_ml
+                      )
+
+                  except Exception:
+
+                      continue
+
+
+                  if (
+                      away_ml != 0
+                      and
+                      home_ml != 0
+                  ):
+
+                      return (
+                          away_ml,
+                          home_ml,
+                      )
+
+
+              return None
+
+
+          # ------------------------------------------------
+          # SEARCH PUBLIC WEB
+          # ------------------------------------------------
+
+          def search_urls(
+              query,
+              domain,
+          ):
+
+              url = (
+                  DDG
+                  +
+                  urllib.parse.quote(
+                      query
+                  )
               )
 
-              if not text.strip():
-                  raise RuntimeError(
-                      "Empty response: "
-                      +
-                      url
-                  )
 
               try:
-                  return json.loads(
-                      text
-                  )
-              except Exception:
+                  html = fetch_text(url)
+
+              except Exception as exc:
+
                   print(
-                      "Bad JSON from:",
-                      url,
+                      "Search failed:",
+                      exc,
                   )
-                  print(
-                      text[:500]
-                  )
-                  raise
+
+                  return []
 
 
-          def clean(text):
+              urls = []
+
+
+              # Direct links
+
+              for match in re.findall(
+                  r'https?://[^"\s<>]+',
+                  html,
+              ):
+
+                  match = (
+                      match
+                      .replace("&amp;", "&")
+                  )
+
+                  if domain in match:
+
+                      if match not in urls:
+                          urls.append(match)
+
+
+              # DuckDuckGo redirect URLs
+
+              for encoded in re.findall(
+                  r'uddg=([^"&]+)',
+                  html,
+              ):
+
+                  candidate = urllib.parse.unquote(
+                      encoded
+                  )
+
+                  if domain in candidate:
+
+                      if candidate not in urls:
+                          urls.append(candidate)
+
+
+              return urls[:8]
+
+
+          # ------------------------------------------------
+          # ACTION NETWORK PARSER
+          # ------------------------------------------------
+
+          def nickname(name):
+
+              return name.split()[-1]
+
+
+          def parse_action_network(
+              text,
+              away_name,
+              home_name,
+          ):
 
               text = (
                   text
@@ -234,106 +408,345 @@ jobs:
                   .replace("—", "-")
               )
 
-              text = re.sub(
-                  r"【\d+†([^】]+)】",
-                  r"\1",
-                  text,
+
+              away_nick = nickname(
+                  away_name
               )
 
-              return text
+              home_nick = nickname(
+                  home_name
+              )
 
 
-          def parse_statmuse(
+              # Require both teams and moneyline section
+
+              if not re.search(
+                  re.escape(away_nick),
+                  text,
+                  flags=re.I,
+              ):
+                  return None
+
+
+              if not re.search(
+                  re.escape(home_nick),
+                  text,
+                  flags=re.I,
+              ):
+                  return None
+
+
+              if not re.search(
+                  r"Moneyline",
+                  text,
+                  flags=re.I,
+              ):
+                  return None
+
+
+              def team_ml(team):
+
+                  #
+                  # Action Network Jina text currently
+                  # renders rows like:
+                  #
+                  # Packers 4-2 | +2.5 | +3.5-106 |
+                  # o55.5-105 | +171
+                  #
+
+                  pattern = re.compile(
+                      rf"^{re.escape(team)}"
+                      rf"[^\n]*"
+                      rf"\|\s*"
+                      rf"([+-]\d+)"
+                      rf"\s*$",
+                      flags=re.I | re.M,
+                  )
+
+
+                  match = pattern.search(
+                      text
+                  )
+
+
+                  if match:
+
+                      return int(
+                          match.group(1)
+                      )
+
+
+                  return None
+
+
+              away_ml = team_ml(
+                  away_nick
+              )
+
+              home_ml = team_ml(
+                  home_nick
+              )
+
+
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
+                  return None
+
+
+              return (
+                  away_ml,
+                  home_ml,
+              )
+
+
+          # ------------------------------------------------
+          # FIND ACTION NETWORK GAME
+          # ------------------------------------------------
+
+          def action_network_lookup(
+              away_name,
+              home_name,
+              game_date,
+          ):
+
+              query = (
+                  'site:actionnetwork.com/nfl-game '
+                  f'"{away_name}" '
+                  f'"{home_name}" '
+                  f'"{game_date}"'
+              )
+
+
+              urls = search_urls(
+                  query,
+                  "actionnetwork.com/nfl-game",
+              )
+
+
+              print(
+                  "Action Network candidates:",
+                  len(urls),
+              )
+
+
+              for url in urls:
+
+                  clean_url = (
+                      url.split("?")[0]
+                  )
+
+
+                  reader_url = (
+                      JINA
+                      +
+                      clean_url.replace(
+                          "https://",
+                          ""
+                      )
+                  )
+
+
+                  try:
+
+                      text = fetch_text(
+                          reader_url
+                      )
+
+                  except Exception:
+
+                      continue
+
+
+                  result = parse_action_network(
+                      text,
+                      away_name,
+                      home_name,
+                  )
+
+
+                  if result:
+
+                      return (
+                          result[0],
+                          result[1],
+                          clean_url,
+                      )
+
+
+              return None
+
+
+          # ------------------------------------------------
+          # COVERS FALLBACK
+          # ------------------------------------------------
+
+          def parse_covers(
               text,
               away_name,
               home_name,
           ):
 
-              text = clean(
+              text = (
                   text
+                  .replace("−", "-")
+                  .replace("–", "-")
+                  .replace("—", "-")
               )
 
-              away = re.escape(
+
+              away_nick = nickname(
                   away_name
               )
 
-              home = re.escape(
+              home_nick = nickname(
                   home_name
               )
 
 
-              pattern = re.compile(
-                  away
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)"
-                  +
-                  r"[\s|]+"
-                  r"(?:@|vs\.?)"
-                  +
-                  r"[\s|]+"
-                  +
-                  home
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)",
+              if not re.search(
+                  r"Moneyline",
+                  text,
                   flags=re.I,
+              ):
+                  return None
+
+
+              #
+              # Covers often exposes probabilities rather
+              # than American odds. We ONLY accept it if
+              # actual +/- American moneylines are present.
+              #
+
+              def find_ml(team):
+
+                  patterns = [
+
+                      rf"{re.escape(team)}"
+                      rf"[^\n]{{0,100}}"
+                      rf"([+-]\d{{3,4}})",
+
+                      rf"([+-]\d{{3,4}})"
+                      rf"[^\n]{{0,100}}"
+                      rf"{re.escape(team)}",
+
+                  ]
+
+
+                  for pattern in patterns:
+
+                      m = re.search(
+                          pattern,
+                          text,
+                          flags=re.I,
+                      )
+
+                      if m:
+
+                          return int(
+                              m.group(1)
+                          )
+
+
+                  return None
+
+
+              away_ml = find_ml(
+                  away_nick
+              )
+
+              home_ml = find_ml(
+                  home_nick
               )
 
 
-              match = pattern.search(
-                  text
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
+
+                  return None
+
+
+              return (
+                  away_ml,
+                  home_ml,
               )
 
 
-              if match:
-                  return (
-                      int(
-                          match.group(1)
-                      ),
-                      int(
-                          match.group(2)
-                      ),
+          def covers_lookup(
+              away_name,
+              home_name,
+              game_date,
+          ):
+
+              query = (
+                  'site:covers.com/sport/football/nfl/matchup '
+                  f'"{away_name}" '
+                  f'"{home_name}" '
+                  f'"{game_date}"'
+              )
+
+
+              urls = search_urls(
+                  query,
+                  "covers.com/sport/football/nfl/matchup",
+              )
+
+
+              for url in urls:
+
+                  clean_url = (
+                      url.split("?")[0]
                   )
 
 
-              pattern = re.compile(
-                  home
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)"
-                  +
-                  r"[\s|]+"
-                  r"(?:@|vs\.?)"
-                  +
-                  r"[\s|]+"
-                  +
-                  away
-                  +
-                  r"[\s|]+"
-                  r"([+-]\d+)",
-                  flags=re.I,
-              )
-
-
-              match = pattern.search(
-                  text
-              )
-
-
-              if match:
-                  return (
-                      int(
-                          match.group(2)
-                      ),
-                      int(
-                          match.group(1)
-                      ),
+                  reader_url = (
+                      JINA
+                      +
+                      clean_url.replace(
+                          "https://",
+                          ""
+                      )
                   )
+
+
+                  try:
+
+                      text = fetch_text(
+                          reader_url
+                      )
+
+                  except Exception:
+
+                      continue
+
+
+                  result = parse_covers(
+                      text,
+                      away_name,
+                      home_name,
+                  )
+
+
+                  if result:
+
+                      return (
+                          result[0],
+                          result[1],
+                          clean_url,
+                      )
 
 
               return None
 
+
+          # ------------------------------------------------
+          # LOAD EXISTING DATABASE
+          # ------------------------------------------------
 
           data = recover_existing()
 
@@ -348,6 +761,10 @@ jobs:
               sort_keys=True,
           )
 
+
+          # ------------------------------------------------
+          # TODAY'S ESPN GAMES
+          # ------------------------------------------------
 
           now_et = datetime.now(
               ZoneInfo(
@@ -371,7 +788,7 @@ jobs:
 
 
           print(
-              "ESPN games found:",
+              "ESPN events:",
               len(
                   scoreboard.get(
                       "events",
@@ -381,39 +798,19 @@ jobs:
           )
 
 
-          try:
-
-              statmuse_text = fetch_text(
-                  STATMUSE
-              )
-
-              print(
-                  "StatMuse loaded:",
-                  len(
-                      statmuse_text
-                  ),
-                  "characters",
-              )
-
-          except Exception as exc:
-
-              statmuse_text = ""
-
-              print(
-                  "StatMuse failed:",
-                  exc,
-              )
-
-
           added = 0
 
+
+          # ------------------------------------------------
+          # PROCESS EACH STARTED GAME
+          # ------------------------------------------------
 
           for event in scoreboard.get(
               "events",
               [],
           ):
 
-              competitions = (
+              comps = (
                   event.get(
                       "competitions"
                   )
@@ -422,13 +819,11 @@ jobs:
               )
 
 
-              if not competitions:
+              if not comps:
                   continue
 
 
-              competition = competitions[
-                  0
-              ]
+              competition = comps[0]
 
 
               state = (
@@ -447,6 +842,11 @@ jobs:
               )
 
 
+              #
+              # Absolutely no line capture
+              # before kickoff.
+              #
+
               if state not in (
                   "in",
                   "post",
@@ -455,33 +855,37 @@ jobs:
 
 
               game_id = str(
-                  event.get(
-                      "id"
-                  )
+                  event.get("id")
               )
 
+
+              #
+              # Never overwrite a verified game.
+              #
 
               if game_id in games:
 
                   print(
-                      "Preserving:",
-                      game_id
+                      "Already stored:",
+                      game_id,
                   )
 
                   continue
 
 
-              competitors = competition.get(
-                  "competitors",
-                  [],
+              competitors = (
+                  competition.get(
+                      "competitors",
+                      []
+                  )
               )
 
 
               away = next(
                   (
-                      team
-                      for team in competitors
-                      if team.get(
+                      x
+                      for x in competitors
+                      if x.get(
                           "homeAway"
                       )
                       ==
@@ -493,9 +897,9 @@ jobs:
 
               home = next(
                   (
-                      team
-                      for team in competitors
-                      if team.get(
+                      x
+                      for x in competitors
+                      if x.get(
                           "homeAway"
                       )
                       ==
@@ -533,42 +937,154 @@ jobs:
               )
 
 
+              kickoff = datetime.fromisoformat(
+                  event["date"].replace(
+                      "Z",
+                      "+00:00",
+                  )
+              )
+
+
+              game_date = kickoff.astimezone(
+                  ZoneInfo(
+                      "America/New_York"
+                  )
+              ).strftime(
+                  "%B %d %Y"
+              )
+
+
               print()
               print(
-                  "Checking:",
+                  "LOOKUP:",
                   away_name,
                   "at",
                   home_name,
               )
 
 
-              closing = None
+              result = None
+              source = None
+              source_url = None
 
 
-              if statmuse_text:
+              # --------------------------------
+              # SOURCE 1: ESPN
+              # --------------------------------
 
-                  closing = parse_statmuse(
-                      statmuse_text,
-                      away_name,
-                      home_name,
+              result = espn_odds(
+                  competition
+              )
+
+
+              if result:
+
+                  source = (
+                      "ESPN pregame moneyline"
+                  )
+
+                  source_url = (
+                      "ESPN scoreboard"
                   )
 
 
-              if closing is None:
+              # --------------------------------
+              # SOURCE 2: ACTION NETWORK
+              # --------------------------------
+
+              if result is None:
+
+                  action = action_network_lookup(
+                      away_name,
+                      home_name,
+                      game_date,
+                  )
+
+
+                  if action:
+
+                      result = (
+                          action[0],
+                          action[1],
+                      )
+
+                      source = (
+                          "Action Network pregame moneyline"
+                      )
+
+                      source_url = action[
+                          2
+                      ]
+
+
+              # --------------------------------
+              # SOURCE 3: COVERS
+              # --------------------------------
+
+              if result is None:
+
+                  covers = covers_lookup(
+                      away_name,
+                      home_name,
+                      game_date,
+                  )
+
+
+                  if covers:
+
+                      result = (
+                          covers[0],
+                          covers[1],
+                      )
+
+                      source = (
+                          "Covers pregame moneyline"
+                      )
+
+                      source_url = covers[
+                          2
+                      ]
+
+
+              # --------------------------------
+              # NOTHING VERIFIED
+              # --------------------------------
+
+              if result is None:
 
                   print(
-                      "No matching closing line."
+                      "PREGAME_ODDS_UNAVAILABLE"
                   )
 
                   continue
 
 
-              away_ml, home_ml = closing
+              away_ml, home_ml = result
+
+
+              away_fair, home_fair = (
+                  fair_pair(
+                      away_ml,
+                      home_ml,
+                  )
+              )
+
+
+              if home_fair >= away_fair:
+
+                  favorite = home_name
+                  favorite_probability = home_fair
+
+              else:
+
+                  favorite = away_name
+                  favorite_probability = away_fair
 
 
               games[
                   game_id
               ] = {
+
                   "event_id":
                       game_id,
 
@@ -584,8 +1100,38 @@ jobs:
                   "home_ml":
                       home_ml,
 
+                  "away_fair_probability":
+                      round(
+                          away_fair,
+                          6,
+                      ),
+
+                  "home_fair_probability":
+                      round(
+                          home_fair,
+                          6,
+                      ),
+
+                  "pregame_favorite":
+                      favorite,
+
+                  "favorite_probability":
+                      round(
+                          favorite_probability,
+                          6,
+                      ),
+
                   "source":
-                      "StatMuse closing odds",
+                      source,
+
+                  "source_url":
+                      source_url,
+
+                  "captured_at":
+                      datetime.now(
+                          timezone.utc
+                      ).isoformat(),
+
               }
 
 
@@ -593,7 +1139,7 @@ jobs:
 
 
               print(
-                  "ADDED:",
+                  "SAVED:",
                   away_name,
                   away_ml,
                   "/",
@@ -601,6 +1147,15 @@ jobs:
                   home_ml,
               )
 
+              print(
+                  "SOURCE:",
+                  source,
+              )
+
+
+          # ------------------------------------------------
+          # WRITE ONLY IF CHANGED
+          # ------------------------------------------------
 
           new_games = json.dumps(
               games,
@@ -608,20 +1163,15 @@ jobs:
           )
 
 
-          current_valid = None
-
-
-          if OUT.exists():
-
-              current_valid = valid_data(
+          current_is_valid = (
+              OUT.exists()
+              and
+              valid_json(
                   OUT.read_text(
                       errors="replace"
                   )
               )
-
-
-          needs_repair = (
-              current_valid is None
+              is not None
           )
 
 
@@ -630,7 +1180,7 @@ jobs:
               !=
               original_games
               or
-              needs_repair
+              not current_is_valid
           ):
 
               data[
@@ -655,31 +1205,26 @@ jobs:
               )
 
 
-              print()
               print(
-                  "closing-lines.json repaired/saved."
+                  "closing-lines.json saved."
               )
 
 
           else:
 
-              print()
               print(
-                  "No changes required."
+                  "No changes."
               )
 
 
           print(
-              "Added this run:",
-              added,
+              "Added:",
+              added
           )
 
-
           print(
-              "Total stored games:",
-              len(
-                  games
-              ),
+              "Total stored:",
+              len(games)
           )
 
           PY
@@ -700,6 +1245,6 @@ jobs:
 
           git add closing-lines.json
 
-          git commit -m "Repair and append NFL closing lines"
+          git commit -m "Update verified NFL pregame odds"
 
           git push
