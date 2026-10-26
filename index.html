@@ -35,6 +35,7 @@ const NFL=[0.155839592,-0.094542496,-0.004931891,-2.23281596,5.40915399,-3.39913
 const CFB=[-1.32202390,4.33068028,-3.11739263,-0.17624777,0.13508128,0.80771874,-0.87799969,-2.91181985,0.36748140];
 const BINS={nfl:{"50–64%":0.5884945989,"65–74%":0.7101917863,"75–84%":0.7694025189,"85%+":0.8740328625},cfb:{"50–69%":0.5947557145,"70–84%":0.7660083851,"85–94%":0.8979099534,"95%+":0.9852538025}};
 const cache={nfl:{events:[],lines:{},selected:null},cfb:{events:[],lines:{},selected:null}};
+const lastConfirmedPossession=new Map();
 let mode="nfl",manualSport="nfl",bin=Object.keys(BINS.nfl)[0],favoriteHasBall=true;
 function sigmoid(z){return z>35?1:z< -35?0:1/(1+Math.exp(-z))}
 function logit(p){p=Math.min(.99999,Math.max(.00001,p));return Math.log(p/(1-p))}
@@ -50,9 +51,15 @@ function ml(x){return x>0?"+"+x:String(x)}
 function state(e,s){const c=e.competitions?.[0],a=side(c,"away"),h=side(c,"home");if(!a||!h)return null;const l=cache[s].lines[String(e.id)],sit=c.situation||{},period=c.status?.period,clock=c.status?.displayClock,remaining=clockMinutes(c.status),status=c.status?.type?.state;
 const b={id:String(e.id),a,h,period,clock,remaining,status,l,sit};if(!l)return b;
 const ap=implied(l.away_ml),hp=implied(l.home_ml);if(ap===null||hp===null||ap+hp<=0)return b;
-const f=hp>=ap?h:a,o=f===h?a:h,p=Math.max(ap,hp)/(ap+hp),d=Number(f.score)-Number(o.score),pos=String(sit.possession||""),known=pos!==""&&(pos===String(a.id)||pos===String(h.id)),fball=known&&pos===String(f.id);
+const f=hp>=ap?h:a,o=f===h?a:h===f?a:h,p=Math.max(ap,hp)/(ap+hp),d=Number(f.score)-Number(o.score);
+const reported=String(sit.possession||"");
+const confirmed=reported===String(a.id)||reported===String(h.id);
+if(s==="nfl"&&confirmed)lastConfirmedPossession.set(String(e.id),reported);
+const pos=confirmed?reported:(s==="nfl"?lastConfirmedPossession.get(String(e.id))||"":"");
+const known=pos===String(a.id)||pos===String(h.id),assumed=known&&!confirmed;
+const fball=known&&pos===String(f.id);
 const valid=s==="cfb"||known;const pr=remaining!==null&&status==="in"&&valid?probability(s,p,remaining,d,fball):null;
-return {...b,f,o,p,d,fball,known,pos,ml:f===h?l.home_ml:l.away_ml,pr};
+return {...b,f,o,p,d,fball,known,confirmed,assumed,pos,ml:f===h?l.home_ml:l.away_ml,pr};
 }
 function switchMode(s){mode=s;for(const x of ["nfl","cfb","manual"])$("tab-"+x).classList.toggle("active",x===s);$("live").classList.toggle("hidden",s==="manual");$("manual").classList.toggle("hidden",s!=="manual");if(s==="manual")renderManual();else{renderLive();load(s)}}
 function renderLive(){if(mode==="manual")return;const s=mode,c=cache[s],games=c.events.map(e=>state(e,s)).filter(Boolean);if(c.selected===null||!games.some(g=>g.id===c.selected))c.selected=games[0]?.id||null;
@@ -60,10 +67,10 @@ $("games").replaceChildren();for(const g of games){const b=document.createElemen
 const g=games.find(x=>x.id===c.selected);$("details").classList.toggle("hidden",!g);if(!g)return;
 $("teams").textContent=g.a.team.displayName+" at "+g.h.team.displayName;$("score").textContent=(g.a.score??0)+" – "+(g.h.score??0);$("clock").textContent=g.status==="in"?"Q"+g.period+" "+g.clock:g.status==="pre"?"Pregame":"Final";
 $("favorite").textContent=g.f?.team.displayName||"Awaiting verified odds";$("moneyline").textContent=g.f?ml(g.ml):"—";$("pregame").textContent=g.p!==undefined?(g.p*100).toFixed(1)+"%":"—";$("diff").textContent=g.d===undefined?"—":sign(g.d);
-$("possession-row").classList.toggle("hidden",s==="cfb");$("possession").textContent=g.known?(g.pos===String(g.a.id)?g.a.team.displayName:g.h.team.displayName):"Unknown";
+$("possession-row").classList.toggle("hidden",s==="cfb");$("possession").textContent=g.known?(g.pos===String(g.a.id)?g.a.team.displayName:g.h.team.displayName)+(g.assumed?" (last known — assumed)":" (confirmed)"):"Unknown";
 $("lastplay").textContent=s==="nfl"&&g.sit.lastPlay?.text?"Last play: "+g.sit.lastPlay.text:"";
 $("live-price").textContent=g.pr===null||g.pr===undefined?"—":price(g.pr);
-$("reason").textContent=!g.f?"Verified pregame moneyline unavailable":g.status!=="in"?"Price shown during live regulation only":g.remaining===null?"Regulation clock unavailable":s==="nfl"&&!g.known?"Waiting for possession data":"";
+$("reason").textContent=!g.f?"Verified pregame moneyline unavailable":g.status!=="in"?"Price shown during live regulation only":g.remaining===null?"Regulation clock unavailable":s==="nfl"&&!g.known?"Waiting for first confirmed possession":s==="nfl"&&g.assumed?"Estimated using last confirmed possession":"";
 }
 async function load(s){try{const u=s==="nfl"?NFL_URL:CFB_URL,lf=s==="nfl"?NFL_LINES:CFB_LINES;const [er,lr]=await Promise.all([fetch(u+"&_="+Date.now(),{cache:"no-store"}),fetch(lf+"?_="+Date.now(),{cache:"no-store"})]);if(!er.ok)throw Error("ESPN HTTP "+er.status);const data=await er.json();if(lr.ok){const d=await lr.json();if(d.games&&typeof d.games==="object")cache[s].lines=d.games}cache[s].events=(data.events||[]).filter(e=>{const c=e.competitions?.[0];return c&&(s==="nfl"?c.status?.type?.state==="in":c.status?.type?.state==="in"&&ranked(c))});
 if(mode===s){const n=cache[s].events.length,matched=cache[s].events.filter(e=>cache[s].lines[String(e.id)]).length;$("status").textContent=(s==="nfl"?"Live NFL":"Live Top 25")+" • "+n+" games • "+matched+" pregame lines matched";renderLive()}}
