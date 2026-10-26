@@ -80,7 +80,55 @@
       "home": "Arizona Cardinals",
       "home_ml": 203,
       "source": "The Odds Gap Novig closing moneyline"
+    },
+    "401873020": {
+      "away": "Green Bay Packers",
+      "away_fair_probability": 0.36906,
+      "away_ml": 160,
+      "captured_at": "2026-10-26T01:48:22.760751+00:00",
+      "date": "2026-10-25",
+      "event_id": "401873020",
+      "favorite_probability": 0.63094,
+      "home": "Detroit Lions",
+      "home_fair_probability": 0.63094,
+      "home_ml": -192,
+      "odds_timestamp": "2026-10-25T19:37:50.256978+00:00",
+      "pregame_favorite": "Detroit Lions",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261025&periods=event"
+    },
+    "401873021": {
+      "away": "Los Angeles Rams",
+      "away_fair_probability": 0.63094,
+      "away_ml": -192,
+      "captured_at": "2026-10-26T01:48:22.760751+00:00",
+      "date": "2026-10-25",
+      "event_id": "401873021",
+      "favorite_probability": 0.63094,
+      "home": "Las Vegas Raiders",
+      "home_fair_probability": 0.36906,
+      "home_ml": 160,
+      "odds_timestamp": "2026-10-25T20:25:16.309989+00:00",
+      "pregame_favorite": "Los Angeles Rams",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261025&periods=event"
+    },
+    "401873022": {
+      "away": "Kansas City Chiefs",
+      "away_fair_probability": 0.40663,
+      "away_ml": 136,
+      "captured_at": "2026-10-26T01:48:22.760751+00:00",
+      "date": "2026-10-25",
+      "event_id": "401873022",
+      "favorite_probability": 0.59337,
+      "home": "Seattle Seahawks",
+      "home_fair_probability": 0.59337,
+      "home_ml": -162,
+      "odds_timestamp": "2026-10-26T00:23:38.511471+00:00",
+      "pregame_favorite": "Seattle Seahawks",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261025&periods=event"
     }
   },
-  "updated_at": "2026-10-25T21:57:42.615088+00:00"
+  "updated_at": "2026-10-26T01:48:22.760751+00:00"
 }
