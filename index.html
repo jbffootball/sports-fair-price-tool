@@ -1,384 +1,79 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b1220">
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b1220">
 <title>Football Fair-Price Lookup</title>
-
 <style>
-:root{
-  --bg:#0b1220;--panel:#111827;--panel2:#15243b;--border:#2a3850;
-  --text:#f8fafc;--muted:#9fb0c5;--accent:#5ea3ff;--price:#facc15;
-  --good:#4ade80;--bad:#f87171;
+*{box-sizing:border-box}body{margin:0;padding:16px 12px 32px;background:#0b1220;color:#f8fafc;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.wrap{max-width:720px;margin:auto}h1{font-size:24px;margin:0 0 6px}.muted,.status,.hint{color:#9fb0c5;font-size:12px}.tabs,.two,.four{display:grid;gap:8px;margin:13px 0}.tabs{grid-template-columns:repeat(3,1fr)}.two{grid-template-columns:repeat(2,1fr)}.four{grid-template-columns:repeat(2,1fr)}button{background:#111827;color:#fff;border:1px solid #2a3850;border-radius:11px;padding:12px 7px;min-height:46px;font-size:14px;font-weight:800;cursor:pointer}button.active{background:#15243b;outline:2px solid #5ea3ff}.hidden{display:none!important}.status,.card,.price{border:1px solid #2a3850;background:#111827;border-radius:14px;padding:15px;margin-top:14px}.status{font-size:13px}.label{font-size:13px;font-weight:800;margin:19px 0 8px}.games{display:grid;gap:8px}.game{width:100%;text-align:left}.game small{display:block;color:#9fb0c5;margin-top:4px}.teams{text-align:center;font-size:20px;font-weight:900}.score{text-align:center;font-size:38px;font-weight:950;margin:8px}.clock{text-align:center;color:#9fb0c5}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #2a3850;font-size:13px}.row span:first-child{color:#9fb0c5}.row span:last-child{text-align:right;font-weight:800}.price{text-align:center;border:2px solid #facc15;padding:24px 12px}.price .label{margin:0;letter-spacing:.6px}.price strong{display:block;color:#facc15;font-size:68px;line-height:1.1;margin-top:10px}.control{text-align:center;color:#9fb0c5;font-size:13px}.value{text-align:center;font-size:38px;font-weight:950;margin:8px}input[type=range]{width:100%}.marks{display:flex;justify-content:space-between;color:#9fb0c5;font-size:11px}.hint{text-align:center;margin-top:8px}@media(min-width:560px){.four{grid-template-columns:repeat(4,1fr)}}
+</style></head><body><main class="wrap">
+<h1>Football Fair-Price Lookup</h1><div class="muted">Live NFL • College Top 25 • Manual • 1.5¢ fee included</div>
+<div class="tabs"><button id="tab-nfl" class="active">NFL</button><button id="tab-cfb">College</button><button id="tab-manual">Manual</button></div>
+<section id="live">
+<div class="status" id="status">Loading games…</div><div class="label">Live games</div><div id="games" class="games"></div>
+<div id="details" class="hidden"><div class="card"><div id="teams" class="teams"></div><div id="score" class="score"></div><div id="clock" class="clock"></div>
+<div class="row"><span>Pregame favorite</span><span id="favorite">—</span></div>
+<div class="row"><span>Closing moneyline</span><span id="moneyline">—</span></div>
+<div class="row"><span>Pregame probability</span><span id="pregame">—</span></div>
+<div class="row"><span>Favorite score differential</span><span id="diff">—</span></div>
+<div id="possession-row" class="row"><span>Possession</span><span id="possession">—</span></div>
+<div class="hint" id="lastplay"></div></div>
+<div class="price"><div class="label">YES BREAK-EVEN PRICE</div><strong id="live-price">—</strong><div class="hint" id="reason"></div></div></div>
+</section>
+<section id="manual" class="hidden">
+<div class="label">Sport</div><div class="two"><button id="manual-nfl" class="active">NFL</button><button id="manual-cfb">College Top 25</button></div>
+<div class="label">Pregame favorite probability</div><div class="four" id="probs"></div>
+<div id="manual-possession"><div class="label">Possession</div><div class="two"><button id="has-ball" class="active">Favorite has ball</button><button id="no-ball">Opponent has ball</button></div></div>
+<div class="card"><div class="control">Game time remaining</div><div id="time-value" class="value">30 min</div><input id="time" type="range" min="0" max="60" value="30" step="1"><div class="marks"><span>0</span><span>15</span><span>30</span><span>45</span><span>60</span></div></div>
+<div class="card"><div class="control">Favorite score differential</div><div id="score-value" class="value">0</div><input id="margin" type="range" min="-7" max="15" value="0" step="1"><div class="marks"><span>-7</span><span>0</span><span>+7</span><span>+15</span></div></div>
+<div class="price"><div class="label">YES BREAK-EVEN PRICE</div><strong id="manual-price">—</strong></div>
+</section>
+</main><script>
+"use strict";
+const $=id=>document.getElementById(id);
+const NFL_URL="https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=100";
+const CFB_URL="https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=500";
+const NFL_LINES="closing-lines.json",CFB_LINES="college-closing-lines.json";
+const NFL=[0.155839592,-0.094542496,-0.004931891,-2.23281596,5.40915399,-3.39913111,-0.705594407,-3.88671556,2.79298034,-0.688165477,-4.20984841,3.37125392];
+const CFB=[-1.32202390,4.33068028,-3.11739263,-0.17624777,0.13508128,0.80771874,-0.87799969,-2.91181985,0.36748140];
+const BINS={nfl:{"50–64%":0.5884945989,"65–74%":0.7101917863,"75–84%":0.7694025189,"85%+":0.8740328625},cfb:{"50–69%":0.5947557145,"70–84%":0.7660083851,"85–94%":0.8979099534,"95%+":0.9852538025}};
+const cache={nfl:{events:[],lines:{},selected:null},cfb:{events:[],lines:{},selected:null}};
+let mode="nfl",manualSport="nfl",bin=Object.keys(BINS.nfl)[0],favoriteHasBall=true;
+function sigmoid(z){return z>35?1:z< -35?0:1/(1+Math.exp(-z))}
+function logit(p){p=Math.min(.99999,Math.max(.00001,p));return Math.log(p/(1-p))}
+function probability(s,p,m,d,f){const x=s==="nfl"?NFL:CFB,t=m/60,t2=t*t;let z=x[0]+x[1]*t+x[2]*t2+Math.exp(x[3]+x[4]*t+x[5]*t2)*logit(p)+Math.exp(x[6]+x[7]*t+x[8]*t2)*d;if(s==="nfl")z+=Math.exp(x[9]+x[10]*t+x[11]*t2)*(f?1:-1);return sigmoid(z)}
+function price(p){return (Math.round(Math.max(0,Math.min(98.5,100*p-1.5))*10)/10).toFixed(1)+"¢"}
+function implied(v){if(v===null||v===undefined||v==="")return null;const x=Number(v);return !Number.isFinite(x)||x===0?null:x<0?-x/(-x+100):100/(x+100)}
+function rank(c){const r=Number(c?.curatedRank?.current);return Number.isInteger(r)&&r>=1&&r<=25?r:null}
+function ranked(c){return (c?.competitors||[]).some(x=>rank(x)!==null)}
+function clockMinutes(s){const period=Number(s?.period),clock=String(s?.displayClock||"");if(period<1||period>4||!/^\d+:\d{2}$/.test(clock))return null;const [m,sec]=clock.split(":").map(Number);if(m>15||sec>59)return null;return ((4-period)*900+m*60+sec)/60}
+function side(c,x){return c.competitors?.find(t=>t.homeAway===x)}
+function sign(x){return x>0?"+"+x:String(x)}
+function ml(x){return x>0?"+"+x:String(x)}
+function state(e,s){const c=e.competitions?.[0],a=side(c,"away"),h=side(c,"home");if(!a||!h)return null;const l=cache[s].lines[String(e.id)],sit=c.situation||{},period=c.status?.period,clock=c.status?.displayClock,remaining=clockMinutes(c.status),status=c.status?.type?.state;
+const b={id:String(e.id),a,h,period,clock,remaining,status,l,sit};if(!l)return b;
+const ap=implied(l.away_ml),hp=implied(l.home_ml);if(ap===null||hp===null||ap+hp<=0)return b;
+const f=hp>=ap?h:a,o=f===h?a:h,p=Math.max(ap,hp)/(ap+hp),d=Number(f.score)-Number(o.score),pos=String(sit.possession||""),known=pos!==""&&(pos===String(a.id)||pos===String(h.id)),fball=known&&pos===String(f.id);
+const valid=s==="cfb"||known;const pr=remaining!==null&&status==="in"&&valid?probability(s,p,remaining,d,fball):null;
+return {...b,f,o,p,d,fball,known,pos,ml:f===h?l.home_ml:l.away_ml,pr};
 }
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
-body{padding:16px 12px 32px}
-.wrap{max-width:720px;margin:auto}
-h1{margin:0 0 5px;font-size:24px}
-.sub{color:var(--muted);font-size:13px;margin-bottom:16px}
-.label{font-size:13px;font-weight:800;margin:18px 0 8px}
-.grid{display:grid;gap:8px}
-.modeGrid,.sports,.possession{grid-template-columns:1fr 1fr}
-.probs{grid-template-columns:repeat(2,1fr)}
-button{appearance:none;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:11px;padding:12px 7px;min-height:46px;font-size:14px;font-weight:800}
-button.active{background:var(--panel2);outline:2px solid var(--accent)}
-.hidden{display:none!important}
-.card,.liveGameCard{margin-top:16px;padding:17px 16px;border:1px solid var(--border);background:var(--panel);border-radius:14px}
-.controlTitle{text-align:center;color:var(--muted);font-size:13px;font-weight:700}
-.bigValue{text-align:center;font-size:38px;font-weight:950;margin:5px 0 10px}
-input[type="range"]{width:100%;margin:10px 0 4px}
-.rangeMarks{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
-.breakEvenBox{margin-top:18px;padding:24px 12px;background:var(--panel);border:2px solid var(--price);border-radius:15px;text-align:center}
-.breakEvenLabel{font-size:14px;font-weight:900;letter-spacing:.7px}
-.breakEvenPrice{color:var(--price);font-size:68px;line-height:1;font-weight:950;margin-top:10px}
-.winProb{margin-top:9px;font-size:17px;font-weight:800}
-.detail,.refreshLine{color:var(--muted);font-size:11px;line-height:1.4;text-align:center}
-.detail{margin-top:6px}.refreshLine{margin-top:9px}
-.liveStatus{padding:12px 14px;margin-top:14px;border-radius:11px;border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:13px}
-.liveStatus.good{border-color:var(--good);color:var(--good)}
-.liveStatus.bad{border-color:var(--bad);color:var(--bad)}
-.gameList{display:grid;gap:9px}
-.gameButton{width:100%;text-align:left;padding:13px}
-.gameButton .teams{font-size:15px;font-weight:900}
-.gameButton .state{color:var(--muted);font-size:12px;margin-top:4px}
-.liveTeams{text-align:center;font-weight:950;font-size:22px}
-.liveScore{text-align:center;font-weight:950;font-size:42px;margin:8px 0}
-.liveClock{text-align:center;color:var(--muted);font-size:15px;font-weight:800}
-.liveRows{margin-top:15px;display:grid;gap:8px}
-.liveRow{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--border);padding-top:8px;font-size:13px}
-.liveRow span:first-child{color:var(--muted)}
-.liveRow span:last-child{text-align:right;font-weight:800}
-.lastPlay{margin-top:13px;color:var(--muted);font-size:11px;line-height:1.4}
-@media(min-width:560px){.probs{grid-template-columns:repeat(4,1fr)}}
-</style>
-</head>
-<body>
-<div class="wrap">
-
-<h1>Football Fair-Price Lookup</h1>
-<div class="sub">Live NFL + manual NFL/College • Flat 1.5¢ fee included</div>
-
-<div class="label">Mode</div>
-<div class="grid modeGrid">
-<button id="liveModeButton" class="active">Live NFL</button>
-<button id="manualModeButton">Manual</button>
-</div>
-
-<div id="liveSection">
-<div id="liveStatus" class="liveStatus">Loading live games…</div>
-
-<div class="label">Live games</div>
-<div id="gameList" class="gameList"></div>
-
-<div id="liveGameArea" class="hidden">
-<div class="liveGameCard">
-<div id="liveTeams" class="liveTeams"></div>
-<div id="liveScore" class="liveScore"></div>
-<div id="liveClock" class="liveClock"></div>
-
-<div class="liveRows">
-<div class="liveRow"><span>Pregame favorite</span><span id="liveFavorite"></span></div>
-<div class="liveRow"><span>Closing moneyline</span><span id="liveMoneyline"></span></div>
-<div class="liveRow"><span>Pregame probability</span><span id="livePregame"></span></div>
-<div class="liveRow"><span>Favorite score differential</span><span id="liveDiff"></span></div>
-<div class="liveRow"><span>Possession</span><span id="livePossession"></span></div>
-</div>
-
-<div id="lastPlay" class="lastPlay"></div>
-</div>
-
-<div class="breakEvenBox">
-<div class="breakEvenLabel">YES BREAK-EVEN PRICE</div>
-<div id="liveBreakEven" class="breakEvenPrice">—</div>
-<div id="liveWinProb" class="winProb"></div>
-<div class="detail">Closing line + live score + exact clock + possession</div>
-</div>
-
-<div id="refreshLine" class="refreshLine"></div>
-</div>
-</div>
-
-<div id="manualSection" class="hidden">
-<div class="label">Sport</div>
-<div class="grid sports" id="sportButtons">
-<button data-sport="nfl" class="active">NFL</button>
-<button data-sport="cfb">College Top 25</button>
-</div>
-
-<div class="label">Pregame favorite probability</div>
-<div class="grid probs" id="probButtons"></div>
-
-<div id="possessionSection">
-<div class="label">Possession</div>
-<div class="grid possession" id="possessionButtons">
-<button data-possession="favorite" class="active">Favorite has ball</button>
-<button data-possession="opponent">Opponent has ball</button>
-</div>
-</div>
-
-<div class="card">
-<div class="controlTitle">Game time remaining</div>
-<div class="bigValue" id="timeValue">30 min</div>
-<input id="timeSlider" type="range" min="0" max="60" step="1" value="30">
-<div class="rangeMarks"><span>0</span><span>15</span><span>30</span><span>45</span><span>60</span></div>
-</div>
-
-<div class="card">
-<div class="controlTitle">Favorite score differential</div>
-<div class="bigValue" id="scoreValue">0</div>
-<input id="scoreSlider" type="range" min="-7" max="15" step="1" value="0">
-<div class="rangeMarks"><span>-7</span><span>0</span><span>+7</span><span>+15</span></div>
-</div>
-
-<div class="breakEvenBox">
-<div class="breakEvenLabel">YES BREAK-EVEN PRICE</div>
-<div id="breakEven" class="breakEvenPrice">—</div>
-<div id="winProb" class="winProb"></div>
-</div>
-</div>
-
-</div>
-
-<script>
-const ESPN_SCOREBOARD="https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard";
-const CLOSING_LINES_FILE="https://raw.githubusercontent.com/jbffootball/sports-fair-price-tool/main/closing-lines.json";
-const LIVE_REFRESH_MS=5000;
-const CLOSING_REFRESH_MS=30000;
-
-const NFL_MODEL={
-theta:[0.155839592,-0.094542496,-0.004931891,-2.23281596,5.40915399,-3.39913111,-0.705594407,-3.88671556,2.79298034,-0.688165477,-4.20984841,3.37125392],
-probabilities:{"50–64%":0.5884945989,"65–74%":0.7101917863,"75–84%":0.7694025189,"85%+":0.8740328625}
-};
-
-const CFB_MODEL={
-theta:[-1.32202390,4.33068028,-3.11739263,-0.17624777,0.13508128,0.80771874,-0.87799969,-2.91181985,0.36748140],
-probabilities:{"50–69%":0.5947557145,"70–84%":0.7660083851,"85–94%":0.8979099534,"95%+":0.9852538025}
-};
-
-function sigmoid(z){if(z>35)return 1;if(z<-35)return 0;return 1/(1+Math.exp(-z))}
-function logit(p){p=Math.max(.00001,Math.min(.99999,p));return Math.log(p/(1-p))}
-function nflProbability(p,m,d,f){
-const x=NFL_MODEL.theta,t=m/60,t2=t*t;
-return sigmoid(x[0]+x[1]*t+x[2]*t2+Math.exp(x[3]+x[4]*t+x[5]*t2)*logit(p)+Math.exp(x[6]+x[7]*t+x[8]*t2)*d+Math.exp(x[9]+x[10]*t+x[11]*t2)*(f?1:-1));
+function switchMode(s){mode=s;for(const x of ["nfl","cfb","manual"])$("tab-"+x).classList.toggle("active",x===s);$("live").classList.toggle("hidden",s==="manual");$("manual").classList.toggle("hidden",s!=="manual");if(s==="manual")renderManual();else{renderLive();load(s)}}
+function renderLive(){if(mode==="manual")return;const s=mode,c=cache[s],games=c.events.map(e=>state(e,s)).filter(Boolean);if(c.selected===null||!games.some(g=>g.id===c.selected))c.selected=games[0]?.id||null;
+$("games").replaceChildren();for(const g of games){const b=document.createElement("button");b.className="game"+(g.id===c.selected?" active":"");const r=x=>s==="cfb"&&rank(x)?"#"+rank(x)+" ":"";const title=document.createElement("div");title.textContent=r(g.a)+g.a.team.abbreviation+" "+(g.a.score??"0")+" — "+r(g.h)+g.h.team.abbreviation+" "+(g.h.score??"0");const small=document.createElement("small");small.textContent=(g.status==="in"?"Q"+g.period+" "+g.clock:g.status==="pre"?"Upcoming":"Final")+" • "+(g.l?"Pregame line loaded":"Waiting for pregame line");b.append(title,small);b.onclick=()=>{c.selected=g.id;renderLive()};$("games").append(b)}
+const g=games.find(x=>x.id===c.selected);$("details").classList.toggle("hidden",!g);if(!g)return;
+$("teams").textContent=g.a.team.displayName+" at "+g.h.team.displayName;$("score").textContent=(g.a.score??0)+" – "+(g.h.score??0);$("clock").textContent=g.status==="in"?"Q"+g.period+" "+g.clock:g.status==="pre"?"Pregame":"Final";
+$("favorite").textContent=g.f?.team.displayName||"Awaiting verified odds";$("moneyline").textContent=g.f?ml(g.ml):"—";$("pregame").textContent=g.p!==undefined?(g.p*100).toFixed(1)+"%":"—";$("diff").textContent=g.d===undefined?"—":sign(g.d);
+$("possession-row").classList.toggle("hidden",s==="cfb");$("possession").textContent=g.known?(g.pos===String(g.a.id)?g.a.team.displayName:g.h.team.displayName):"Unknown";
+$("lastplay").textContent=s==="nfl"&&g.sit.lastPlay?.text?"Last play: "+g.sit.lastPlay.text:"";
+$("live-price").textContent=g.pr===null||g.pr===undefined?"—":price(g.pr);
+$("reason").textContent=!g.f?"Verified pregame moneyline unavailable":g.status!=="in"?"Price shown during live regulation only":g.remaining===null?"Regulation clock unavailable":s==="nfl"&&!g.known?"Waiting for possession data":"";
 }
-function collegeProbability(p,m,d){
-const x=CFB_MODEL.theta,t=m/60,t2=t*t;
-return sigmoid(x[0]+x[1]*t+x[2]*t2+Math.exp(x[3]+x[4]*t+x[5]*t2)*logit(p)+Math.exp(x[6]+x[7]*t+x[8]*t2)*d);
-}
-function breakEvenCents(p){return Math.max(0,Math.min(98.5,p*100-1.5))}
-function americanToImplied(o){o=Number(o);if(!Number.isFinite(o))return null;return o<0?(-o)/(-o+100):100/(o+100)}
-function noVigPair(a,h){a=americanToImplied(a);h=americanToImplied(h);if(a===null||h===null)return null;const t=a+h;return{away:a/t,home:h/t}}
-function formatPrice(x){return(Math.round(x*10)/10).toFixed(1)+"¢"}
-function formatPercent(x){return(x*100).toFixed(1)+"%"}
-function formatDiff(x){return x>0?"+"+x:String(x)}
-function formatML(x){return x>0?"+"+x:String(x)}
-
-let closingLines={},closingUpdatedAt=null;
-
-async function refreshClosingLines(){
-try{
-const r=await fetch(CLOSING_LINES_FILE+"?_="+Date.now(),{cache:"no-store"});
-if(!r.ok)throw new Error("Closing JSON HTTP "+r.status);
-const d=await r.json();
-closingLines=d.games||{};
-closingUpdatedAt=d.updated_at||null;
-renderLiveGameList();
-renderSelectedLiveGame();
-}catch(e){console.log("Closing lines not available yet:",e.message)}
-}
-
-function clockToSeconds(c){if(!c||!c.includes(":"))return 0;const p=c.split(":");return Number(p[0])*60+Number(p[1])}
-function regulationSecondsRemaining(p,c){if(p<1||p>4)return null;return(4-p)*900+clockToSeconds(c)}
-function findSide(c,s){return c.competitors.find(x=>x.homeAway===s)}
-
-function buildLiveState(event){
-const c=event.competitions[0],s=c.status,h=findSide(c,"home"),a=findSide(c,"away");
-if(!h||!a)return null;
-const id=String(event.id),cl=closingLines[id]||null,si=c.situation||{};
-const possessionId=si.possession?String(si.possession):null;
-const secondsRemaining=regulationSecondsRemaining(s.period,s.displayClock);
-
-const base={id,awayName:a.team.displayName,homeName:h.team.displayName,awayAbbr:a.team.abbreviation,homeAbbr:h.team.abbreviation,awayScore:Number(a.score),homeScore:Number(h.score),period:s.period,clock:s.displayClock,possessionId,secondsRemaining,lastPlay:si.lastPlay&&si.lastPlay.text?si.lastPlay.text:""};
-
-if(!cl)return{...base,closingFound:false};
-
-const probs=noVigPair(cl.away_ml,cl.home_ml);
-if(!probs)return{...base,closingFound:false};
-
-let f,o,fml,oml,pp,fs,os;
-if(probs.home>=probs.away){
-f=h;o=a;fml=cl.home_ml;oml=cl.away_ml;pp=probs.home;fs=Number(h.score);os=Number(a.score);
-}else{
-f=a;o=h;fml=cl.away_ml;oml=cl.home_ml;pp=probs.away;fs=Number(a.score);os=Number(h.score);
-}
-
-const diff=fs-os;
-const pk=possessionId!==null;
-const fhb=pk&&String(f.id)===possessionId;
-let pn="Unknown";
-if(possessionId===String(h.id))pn=h.team.shortDisplayName;
-if(possessionId===String(a.id))pn=a.team.shortDisplayName;
-
-let prob=null;
-if(pk&&secondsRemaining!==null)prob=nflProbability(pp,secondsRemaining/60,diff,fhb);
-
-return{...base,closingFound:true,favoriteName:f.team.shortDisplayName,opponentName:o.team.shortDisplayName,favoriteML:fml,opponentML:oml,pregameProbability:pp,scoreDiff:diff,possessionKnown:pk,favoriteHasBall:fhb,possessionName:pn,probability:prob,breakEven:prob===null?null:breakEvenCents(prob)};
-}
-
-let liveGames=[],selectedGameId=null;
-
-async function refreshLiveGames(){
-const box=document.getElementById("liveStatus");
-try{
-const r=await fetch(ESPN_SCOREBOARD+"?limit=100&_="+Date.now(),{cache:"no-store"});
-if(!r.ok)throw new Error("ESPN HTTP "+r.status);
-const data=await r.json(),games=[];
-
-for(const event of data.events||[]){
-const c=event.competitions&&event.competitions[0];
-if(!c||c.status.type.state!=="in")continue;
-const g=buildLiveState(event);
-if(g)games.push(g);
-}
-
-liveGames=games;
-if(selectedGameId===null&&games.length)selectedGameId=games[0].id;
-if(selectedGameId!==null&&!games.some(g=>g.id===selectedGameId))selectedGameId=games.length?games[0].id:null;
-
-const matched=games.filter(g=>g.closingFound).length;
-box.className=games.length>0&&matched===games.length?"liveStatus good":"liveStatus";
-box.textContent="Live feed connected • "+games.length+" games • "+matched+" closing lines matched";
-renderLiveGameList();
-renderSelectedLiveGame();
-}catch(e){box.className="liveStatus bad";box.textContent="Live feed error: "+e.message}
-}
-
-function renderLiveGameList(){
-const c=document.getElementById("gameList");c.innerHTML="";
-for(const g of liveGames){
-const b=document.createElement("button");b.className="gameButton";
-if(g.id===selectedGameId)b.classList.add("active");
-b.innerHTML='<div class="teams">'+g.awayAbbr+" "+g.awayScore+" — "+g.homeAbbr+" "+g.homeScore+'</div><div class="state">'+g.clock+" • Q"+g.period+" • "+(g.closingFound?"Closing line loaded":"Waiting for closing line")+"</div>";
-b.addEventListener("click",()=>{selectedGameId=g.id;renderLiveGameList();renderSelectedLiveGame()});
-c.appendChild(b);
-}
-}
-
-function renderSelectedLiveGame(){
-const area=document.getElementById("liveGameArea");
-if(!selectedGameId){area.classList.add("hidden");return}
-const g=liveGames.find(x=>x.id===selectedGameId);
-if(!g){area.classList.add("hidden");return}
-area.classList.remove("hidden");
-
-document.getElementById("liveTeams").textContent=g.awayName+" at "+g.homeName;
-document.getElementById("liveScore").textContent=g.awayScore+" – "+g.homeScore;
-document.getElementById("liveClock").textContent=g.clock+" • Q"+g.period;
-
-if(!g.closingFound){
-document.getElementById("liveFavorite").textContent="Waiting for closing line";
-document.getElementById("liveMoneyline").textContent="—";
-document.getElementById("livePregame").textContent="—";
-document.getElementById("liveDiff").textContent="—";
-document.getElementById("livePossession").textContent=g.possessionId?"Live possession detected":"Unknown";
-document.getElementById("liveBreakEven").textContent="—";
-document.getElementById("liveWinProb").textContent="Waiting for closing line";
-}else{
-document.getElementById("liveFavorite").textContent=g.favoriteName;
-document.getElementById("liveMoneyline").textContent=formatML(g.favoriteML);
-document.getElementById("livePregame").textContent=formatPercent(g.pregameProbability);
-document.getElementById("liveDiff").textContent=formatDiff(g.scoreDiff);
-document.getElementById("livePossession").textContent=g.possessionKnown?g.possessionName+(g.favoriteHasBall?" — favorite":" — opponent"):"Unknown";
-
-if(g.probability!==null){
-document.getElementById("liveBreakEven").textContent=formatPrice(g.breakEven);
-document.getElementById("liveWinProb").textContent="Modeled favorite win probability: "+formatPercent(g.probability);
-}else{
-document.getElementById("liveBreakEven").textContent="—";
-document.getElementById("liveWinProb").textContent="Waiting for possession data";
-}
-}
-
-document.getElementById("lastPlay").textContent=g.lastPlay?"Last play: "+g.lastPlay:"";
-let t="";
-if(closingUpdatedAt)t=" • Closing file updated "+new Date(closingUpdatedAt).toLocaleTimeString();
-document.getElementById("refreshLine").textContent="Live ESPN state refreshes every 5 seconds"+t;
-}
-
-let manualSport="nfl",probabilityLabel="50–64%",minutesRemaining=30,scoreDifferential=0,manualPossession="favorite";
-const probButtons=document.getElementById("probButtons");
-
-function currentManualModel(){return manualSport==="nfl"?NFL_MODEL:CFB_MODEL}
-
-function renderProbabilityButtons(){
-const labels=Object.keys(currentManualModel().probabilities);
-if(!labels.includes(probabilityLabel))probabilityLabel=labels[0];
-probButtons.innerHTML="";
-for(const label of labels){
-const b=document.createElement("button");b.textContent=label;
-if(label===probabilityLabel)b.classList.add("active");
-b.addEventListener("click",()=>{probabilityLabel=label;renderProbabilityButtons();renderManualResult()});
-probButtons.appendChild(b);
-}
-}
-
-function renderPossessionSection(){
-document.getElementById("possessionSection").classList.toggle("hidden",manualSport!=="nfl");
-}
-
-function renderManualResult(){
-document.getElementById("timeValue").textContent=minutesRemaining+" min";
-document.getElementById("scoreValue").textContent=formatDiff(scoreDifferential);
-const m=currentManualModel(),p=m.probabilities[probabilityLabel];
-const result=manualSport==="nfl"?nflProbability(p,minutesRemaining,scoreDifferential,manualPossession==="favorite"):collegeProbability(p,minutesRemaining,scoreDifferential);
-document.getElementById("breakEven").textContent=formatPrice(breakEvenCents(result));
-document.getElementById("winProb").textContent="Modeled favorite win probability: "+formatPercent(result);
-}
-
-const liveModeButton=document.getElementById("liveModeButton"),manualModeButton=document.getElementById("manualModeButton");
-
-liveModeButton.addEventListener("click",()=>{
-liveModeButton.classList.add("active");manualModeButton.classList.remove("active");
-document.getElementById("liveSection").classList.remove("hidden");
-document.getElementById("manualSection").classList.add("hidden");
-});
-
-manualModeButton.addEventListener("click",()=>{
-manualModeButton.classList.add("active");liveModeButton.classList.remove("active");
-document.getElementById("manualSection").classList.remove("hidden");
-document.getElementById("liveSection").classList.add("hidden");
-renderManualResult();
-});
-
-document.querySelectorAll("#sportButtons button").forEach(button=>{
-button.addEventListener("click",()=>{
-manualSport=button.dataset.sport;
-document.querySelectorAll("#sportButtons button").forEach(b=>b.classList.toggle("active",b===button));
-probabilityLabel=Object.keys(currentManualModel().probabilities)[0];
-renderProbabilityButtons();renderPossessionSection();renderManualResult();
-});
-});
-
-document.querySelectorAll("#possessionButtons button").forEach(button=>{
-button.addEventListener("click",()=>{
-manualPossession=button.dataset.possession;
-document.querySelectorAll("#possessionButtons button").forEach(b=>b.classList.toggle("active",b===button));
-renderManualResult();
-});
-});
-
-document.getElementById("timeSlider").addEventListener("input",e=>{minutesRemaining=Number(e.target.value);renderManualResult()});
-document.getElementById("scoreSlider").addEventListener("input",e=>{scoreDifferential=Number(e.target.value);renderManualResult()});
-
-renderProbabilityButtons();
-renderPossessionSection();
-renderManualResult();
-
-refreshClosingLines().then(refreshLiveGames);
-setInterval(refreshLiveGames,LIVE_REFRESH_MS);
-setInterval(refreshClosingLines,CLOSING_REFRESH_MS);
-</script>
-</body>
-</html>
+async function load(s){try{const u=s==="nfl"?NFL_URL:CFB_URL,lf=s==="nfl"?NFL_LINES:CFB_LINES;const [er,lr]=await Promise.all([fetch(u+"&_="+Date.now(),{cache:"no-store"}),fetch(lf+"?_="+Date.now(),{cache:"no-store"})]);if(!er.ok)throw Error("ESPN HTTP "+er.status);const data=await er.json();if(lr.ok){const d=await lr.json();if(d.games&&typeof d.games==="object")cache[s].lines=d.games}cache[s].events=(data.events||[]).filter(e=>{const c=e.competitions?.[0];return c&&(s==="nfl"?c.status?.type?.state==="in":c.status?.type?.state==="in"&&ranked(c))});
+if(mode===s){const n=cache[s].events.length,matched=cache[s].events.filter(e=>cache[s].lines[String(e.id)]).length;$("status").textContent=(s==="nfl"?"Live NFL":"Live Top 25")+" • "+n+" games • "+matched+" pregame lines matched";renderLive()}}
+catch(e){if(mode===s)$("status").textContent="Data error: "+e.message;console.error(e)}}
+function renderBins(){const labels=Object.keys(BINS[manualSport]);if(!labels.includes(bin))bin=labels[0];$("probs").replaceChildren();for(const label of labels){const b=document.createElement("button");b.textContent=label;b.classList.toggle("active",bin===label);b.onclick=()=>{bin=label;renderBins();renderManual()};$("probs").append(b)}}
+function renderManual(){renderBins();$("manual-nfl").classList.toggle("active",manualSport==="nfl");$("manual-cfb").classList.toggle("active",manualSport==="cfb");$("manual-possession").classList.toggle("hidden",manualSport==="cfb");$("has-ball").classList.toggle("active",favoriteHasBall);$("no-ball").classList.toggle("active",!favoriteHasBall);
+const m=Number($("time").value),d=Number($("margin").value);$("time-value").textContent=m+" min";$("score-value").textContent=sign(d);$("manual-price").textContent=price(probability(manualSport,BINS[manualSport][bin],m,d,favoriteHasBall))}
+for(const s of ["nfl","cfb","manual"])$("tab-"+s).onclick=()=>switchMode(s);
+for(const s of ["nfl","cfb"])$("manual-"+s).onclick=()=>{manualSport=s;bin=Object.keys(BINS[s])[0];renderManual()};
+$("has-ball").onclick=()=>{favoriteHasBall=true;renderManual()};$("no-ball").onclick=()=>{favoriteHasBall=false;renderManual()};
+$("time").oninput=renderManual;$("margin").oninput=renderManual;
+renderManual();load("nfl");setInterval(()=>{if(mode!=="manual")load(mode)},15000);
+</script></body></html>
