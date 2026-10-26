@@ -1,5 +1,21 @@
 {
   "games": {
+    "401873009": {
+      "away": "Dallas Cowboys",
+      "away_fair_probability": 0.657475,
+      "away_ml": -218,
+      "captured_at": "2026-10-26T06:54:37.994346+00:00",
+      "date": "2026-10-26",
+      "event_id": "401873009",
+      "favorite_probability": 0.657475,
+      "home": "Philadelphia Eagles",
+      "home_fair_probability": 0.342525,
+      "home_ml": 180,
+      "odds_timestamp": "2026-10-26T04:17:33.402937+00:00",
+      "pregame_favorite": "Dallas Cowboys",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261026&periods=event"
+    },
     "401873011": {
       "away": "Pittsburgh Steelers",
       "away_ml": -150,
@@ -130,5 +146,5 @@
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261025&periods=event"
     }
   },
-  "updated_at": "2026-10-26T01:48:22.760751+00:00"
+  "updated_at": "2026-10-26T06:54:37.994346+00:00"
 }
