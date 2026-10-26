@@ -2,11 +2,17 @@ name: Update NFL Pregame Odds
 
 on:
   workflow_dispatch:
+
   schedule:
+    # Sunday daytime + Sunday night
     - cron: "*/5 12-23 * * 0"
     - cron: "*/5 0-6 * * 1"
+
+    # Monday night
     - cron: "*/5 22-23 * * 1"
     - cron: "*/5 0-6 * * 2"
+
+    # Thursday night
     - cron: "*/5 22-23 * * 4"
     - cron: "*/5 0-6 * * 5"
 
@@ -18,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -28,16 +35,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Capture ESPN NFL pregame odds
+      - name: Capture verified NFL pregame moneylines
         shell: bash
         run: |
           python - <<'PY'
+
           import json
+          import re
           import subprocess
           import urllib.request
+
           from datetime import datetime, timezone
           from pathlib import Path
           from zoneinfo import ZoneInfo
+
 
           OUT = Path("closing-lines.json")
 
@@ -46,53 +57,115 @@ jobs:
               "sports/football/nfl/scoreboard"
           )
 
-          ET = ZoneInfo("America/New_York")
+          ACTION = (
+              "https://api.actionnetwork.com/"
+              "web/v1/scoreboard/nfl"
+          )
+
+          ET = ZoneInfo(
+              "America/New_York"
+          )
 
 
-          def fetch_text(url):
+          # ----------------------------------------
+          # SPORTSBOOK PRIORITY
+          #
+          # 68  = DraftKings
+          # 75  = BetMGM
+          # 123 = Caesars
+          # 79  = bet365
+          # 71  = BetRivers
+          # ----------------------------------------
+
+          BOOKS = {
+              68: "DraftKings",
+              75: "BetMGM",
+              123: "Caesars",
+              79: "bet365",
+              71: "BetRivers",
+          }
+
+          BOOK_PRIORITY = [
+              68,
+              75,
+              123,
+              79,
+              71,
+          ]
+
+
+          # ========================================
+          # HTTP
+          # ========================================
+
+          def fetch_text(
+              url
+          ):
+
               request = urllib.request.Request(
                   url,
                   headers={
                       "User-Agent":
-                          "Mozilla/5.0 FootballFairPriceLookup/1.0",
+                          "Mozilla/5.0 "
+                          "(iPhone; CPU iPhone OS 17_0 "
+                          "like Mac OS X) "
+                          "AppleWebKit/605.1.15",
 
                       "Accept":
-                          "application/json,text/plain,*/*",
+                          "application/json,"
+                          "text/plain,*/*",
                   },
               )
+
 
               with urllib.request.urlopen(
                   request,
                   timeout=30,
               ) as response:
 
-                  return response.read().decode(
-                      "utf-8",
-                      errors="replace",
+                  return (
+                      response
+                      .read()
+                      .decode(
+                          "utf-8",
+                          errors="replace",
+                      )
                   )
 
 
-          def fetch_json(url):
+          def fetch_json(
+              url
+          ):
+
               text = fetch_text(
                   url
               )
 
+
               if not text.strip():
+
                   raise RuntimeError(
                       "Empty response from "
                       +
                       url
                   )
 
+
               try:
+
                   return json.loads(
                       text
                   )
 
+
               except Exception:
+
                   print(
-                      "BAD JSON FROM:",
-                      url,
+                      "BAD JSON FROM:"
+                  )
+
+                  print(
+                      url
                   )
 
                   print(
@@ -102,23 +175,41 @@ jobs:
                   raise
 
 
-          def valid_json(text):
-              if not text or not text.strip():
+          # ========================================
+          # EXISTING JSON
+          # ========================================
+
+          def valid_json(
+              text
+          ):
+
+              if (
+                  not text
+                  or
+                  not text.strip()
+              ):
+
                   return None
 
+
               try:
+
                   data = json.loads(
                       text
                   )
 
               except Exception:
+
                   return None
+
 
               if not isinstance(
                   data,
                   dict,
               ):
+
                   return None
+
 
               if not isinstance(
                   data.get(
@@ -127,7 +218,9 @@ jobs:
                   ),
                   dict,
               ):
+
                   return None
+
 
               return data
 
@@ -142,18 +235,19 @@ jobs:
                       )
                   )
 
+
                   if current is not None:
 
                       print(
-                          "Current closing-lines.json valid."
+                          "Existing closing-lines.json valid."
                       )
 
                       return current
 
 
               print(
-                  "Current JSON invalid or empty; "
-                  "searching Git history."
+                  "Current JSON invalid; "
+                  "recovering from Git history."
               )
 
 
@@ -174,11 +268,13 @@ jobs:
 
                   sha = sha.strip()
 
+
                   if not sha:
+
                       continue
 
 
-                  show = subprocess.run(
+                  old = subprocess.run(
                       [
                           "git",
                           "show",
@@ -189,12 +285,13 @@ jobs:
                   )
 
 
-                  if show.returncode != 0:
+                  if old.returncode != 0:
+
                       continue
 
 
                   recovered = valid_json(
-                      show.stdout
+                      old.stdout
                   )
 
 
@@ -213,8 +310,7 @@ jobs:
                                   "games"
                               ]
                           ),
-                          "games from",
-                          sha,
+                          "games."
                       )
 
                       return recovered
@@ -226,67 +322,122 @@ jobs:
               }
 
 
-          def parse_american(
+          # ========================================
+          # TEAM MATCHING
+          # ========================================
+
+          def normalize_team(
+              name
+          ):
+
+              name = (
+                  str(
+                      name
+                      or
+                      ""
+                  )
+                  .lower()
+                  .replace(
+                      "&",
+                      "and"
+                  )
+              )
+
+
+              name = re.sub(
+                  r"[^a-z0-9]+",
+                  " ",
+                  name,
+              )
+
+
+              return " ".join(
+                  name.split()
+              )
+
+
+          def nickname(
+              name
+          ):
+
+              parts = normalize_team(
+                  name
+              ).split()
+
+
+              if not parts:
+
+                  return ""
+
+
+              return parts[
+                  -1
+              ]
+
+
+          def teams_match(
+              a,
+              b
+          ):
+
+              na = normalize_team(
+                  a
+              )
+
+              nb = normalize_team(
+                  b
+              )
+
+
+              if (
+                  na
+                  and
+                  na == nb
+              ):
+
+                  return True
+
+
+              # NFL nicknames are unique.
+              return (
+                  nickname(
+                      a
+                  )
+                  ==
+                  nickname(
+                      b
+                  )
+                  and
+                  nickname(
+                      a
+                  )
+                  !=
+                  ""
+              )
+
+
+          # ========================================
+          # MONEYLINE MATH
+          # ========================================
+
+          def parse_moneyline(
               value
           ):
 
               if value is None:
+
                   return None
 
 
-              if isinstance(
-                  value,
-                  (
-                      int,
-                      float,
-                  ),
-              ):
+              try:
 
                   value = int(
                       value
                   )
 
+              except Exception:
 
-              else:
-
-                  text = str(
-                      value
-                  ).strip()
-
-                  text = (
-                      text
-                      .replace(
-                          "−",
-                          "-"
-                      )
-                      .replace(
-                          "–",
-                          "-"
-                      )
-                      .replace(
-                          "—",
-                          "-"
-                      )
-                  )
-
-
-                  if text.upper() in (
-                      "EVEN",
-                      "EV",
-                  ):
-
-                      return 100
-
-
-                  try:
-
-                      value = int(
-                          text
-                      )
-
-                  except Exception:
-
-                      return None
+                  return None
 
 
               if value == 0:
@@ -297,221 +448,22 @@ jobs:
               return value
 
 
-          def nested_close_odds(
-              moneyline,
-              side,
-          ):
-
-              side_data = (
-                  moneyline.get(
-                      side
-                  )
-                  or
-                  {}
-              )
-
-
-              close_data = (
-                  side_data.get(
-                      "close"
-                  )
-                  or
-                  {}
-              )
-
-
-              value = close_data.get(
-                  "odds"
-              )
-
-
-              if value is None:
-
-                  value = close_data.get(
-                      "moneyLine"
-                  )
-
-
-              if value is None:
-
-                  value = close_data.get(
-                      "moneyline"
-                  )
-
-
-              if value is None:
-
-                  value = side_data.get(
-                      "odds"
-                  )
-
-
-              if value is None:
-
-                  value = side_data.get(
-                      "moneyLine"
-                  )
-
-
-              if value is None:
-
-                  value = side_data.get(
-                      "moneyline"
-                  )
-
-
-              return parse_american(
-                  value
-              )
-
-
-          def extract_espn_moneyline(
-              competition
-          ):
-
-              odds_list = (
-                  competition.get(
-                      "odds"
-                  )
-                  or
-                  []
-              )
-
-
-              for item in odds_list:
-
-                  # -----------------------------
-                  # Current ESPN structure
-                  #
-                  # odds
-                  #   moneyline
-                  #     away
-                  #       close
-                  #         odds
-                  #     home
-                  #       close
-                  #         odds
-                  # -----------------------------
-
-                  moneyline = (
-                      item.get(
-                          "moneyline"
-                      )
-                      or
-                      item.get(
-                          "moneyLine"
-                      )
-                      or
-                      {}
-                  )
-
-
-                  if isinstance(
-                      moneyline,
-                      dict,
-                  ):
-
-                      away_ml = nested_close_odds(
-                          moneyline,
-                          "away",
-                      )
-
-
-                      home_ml = nested_close_odds(
-                          moneyline,
-                          "home",
-                      )
-
-
-                      if (
-                          away_ml is not None
-                          and
-                          home_ml is not None
-                      ):
-
-                          return (
-                              away_ml,
-                              home_ml,
-                              "ESPN moneyline close",
-                          )
-
-
-                  # -----------------------------
-                  # Older ESPN structure
-                  # -----------------------------
-
-                  away = (
-                      item.get(
-                          "awayTeamOdds"
-                      )
-                      or
-                      {}
-                  )
-
-
-                  home = (
-                      item.get(
-                          "homeTeamOdds"
-                      )
-                      or
-                      {}
-                  )
-
-
-                  away_ml = parse_american(
-                      away.get(
-                          "moneyLine"
-                      )
-                      or
-                      away.get(
-                          "moneyline"
-                      )
-                  )
-
-
-                  home_ml = parse_american(
-                      home.get(
-                          "moneyLine"
-                      )
-                      or
-                      home.get(
-                          "moneyline"
-                      )
-                  )
-
-
-                  if (
-                      away_ml is not None
-                      and
-                      home_ml is not None
-                  ):
-
-                      return (
-                          away_ml,
-                          home_ml,
-                          "ESPN team moneyline",
-                      )
-
-
-              return None
-
-
           def implied_probability(
-              moneyline
+              ml
           ):
 
-              moneyline = int(
-                  moneyline
+              ml = int(
+                  ml
               )
 
 
-              if moneyline < 0:
+              if ml < 0:
 
                   return (
-                      -moneyline
+                      -ml
                       /
                       (
-                          -moneyline
+                          -ml
                           +
                           100
                       )
@@ -522,14 +474,14 @@ jobs:
                   100
                   /
                   (
-                      moneyline
+                      ml
                       +
                       100
                   )
               )
 
 
-          def no_vig_probabilities(
+          def no_vig_pair(
               away_ml,
               home_ml,
           ):
@@ -537,7 +489,6 @@ jobs:
               away_raw = implied_probability(
                   away_ml
               )
-
 
               home_raw = implied_probability(
                   home_ml
@@ -561,6 +512,373 @@ jobs:
                   total,
               )
 
+
+          # ========================================
+          # ACTION NETWORK
+          # ========================================
+
+          def action_url(
+              date_string
+          ):
+
+              book_ids = ",".join(
+                  str(
+                      x
+                  )
+                  for x
+                  in BOOK_PRIORITY
+              )
+
+
+              return (
+                  ACTION
+                  +
+                  "?bookIds="
+                  +
+                  book_ids
+                  +
+                  "&date="
+                  +
+                  date_string
+                  +
+                  "&periods=event"
+              )
+
+
+          def parse_action_games(
+              payload
+          ):
+
+              parsed = []
+
+
+              for game in payload.get(
+                  "games",
+                  [],
+              ):
+
+                  teams = {
+                      team.get(
+                          "id"
+                      ):
+                      team
+
+                      for team
+                      in game.get(
+                          "teams",
+                          [],
+                      )
+                  }
+
+
+                  home = (
+                      teams
+                      .get(
+                          game.get(
+                              "home_team_id"
+                          ),
+                          {},
+                      )
+                      .get(
+                          "full_name",
+                          "",
+                      )
+                  )
+
+
+                  away = (
+                      teams
+                      .get(
+                          game.get(
+                              "away_team_id"
+                          ),
+                          {},
+                      )
+                      .get(
+                          "full_name",
+                          "",
+                      )
+                  )
+
+
+                  if (
+                      not home
+                      or
+                      not away
+                  ):
+
+                      continue
+
+
+                  rows = []
+
+
+                  for row in game.get(
+                      "odds",
+                      [],
+                  ):
+
+                      # CRITICAL:
+                      #
+                      # "game" = full-game pregame row.
+                      # It freezes at kickoff.
+                      #
+                      # "live" = in-game odds.
+                      # We NEVER use those.
+
+                      if row.get(
+                          "type"
+                      ) != "game":
+
+                          continue
+
+
+                      book_id = row.get(
+                          "book_id"
+                      )
+
+
+                      if book_id not in BOOKS:
+
+                          continue
+
+
+                      line_status = (
+                          row.get(
+                              "line_status"
+                          )
+                          or
+                          {}
+                      )
+
+
+                      if (
+                          line_status.get(
+                              "ml_home"
+                          )
+                          ==
+                          2
+                          or
+                          line_status.get(
+                              "ml_away"
+                          )
+                          ==
+                          2
+                      ):
+
+                          continue
+
+
+                      home_ml = parse_moneyline(
+                          row.get(
+                              "ml_home"
+                          )
+                      )
+
+
+                      away_ml = parse_moneyline(
+                          row.get(
+                              "ml_away"
+                          )
+                      )
+
+
+                      if (
+                          home_ml is None
+                          or
+                          away_ml is None
+                      ):
+
+                          continue
+
+
+                      rows.append(
+                          {
+                              "book_id":
+                                  book_id,
+
+                              "book":
+                                  BOOKS[
+                                      book_id
+                                  ],
+
+                              "home_ml":
+                                  home_ml,
+
+                              "away_ml":
+                                  away_ml,
+
+                              "inserted":
+                                  row.get(
+                                      "inserted"
+                                  ),
+                          }
+                      )
+
+
+                  parsed.append(
+                      {
+                          "action_id":
+                              game.get(
+                                  "id"
+                              ),
+
+                          "status":
+                              game.get(
+                                  "status"
+                              ),
+
+                          "start_time":
+                              game.get(
+                                  "start_time"
+                              ),
+
+                          "home":
+                              home,
+
+                          "away":
+                              away,
+
+                          "rows":
+                              rows,
+                      }
+                  )
+
+
+              return parsed
+
+
+          def find_action_game(
+              action_games,
+              away_name,
+              home_name,
+          ):
+
+              for game in action_games:
+
+                  if (
+                      teams_match(
+                          game[
+                              "away"
+                          ],
+                          away_name,
+                      )
+                      and
+                      teams_match(
+                          game[
+                              "home"
+                          ],
+                          home_name,
+                      )
+                  ):
+
+                      return game
+
+
+              return None
+
+
+          def choose_action_row(
+              game
+          ):
+
+              rows = game.get(
+                  "rows",
+                  []
+              )
+
+
+              for preferred_id in BOOK_PRIORITY:
+
+                  for row in rows:
+
+                      if (
+                          row.get(
+                              "book_id"
+                          )
+                          ==
+                          preferred_id
+                      ):
+
+                          return row
+
+
+              return None
+
+
+          # ========================================
+          # ESPN FALLBACK
+          # ========================================
+
+          def parse_espn_moneyline(
+              competition
+          ):
+
+              for odds in (
+                  competition.get(
+                      "odds"
+                  )
+                  or
+                  []
+              ):
+
+                  away = (
+                      odds.get(
+                          "awayTeamOdds"
+                      )
+                      or
+                      {}
+                  )
+
+                  home = (
+                      odds.get(
+                          "homeTeamOdds"
+                      )
+                      or
+                      {}
+                  )
+
+
+                  away_ml = parse_moneyline(
+                      away.get(
+                          "moneyLine"
+                      )
+                      or
+                      away.get(
+                          "moneyline"
+                      )
+                  )
+
+
+                  home_ml = parse_moneyline(
+                      home.get(
+                          "moneyLine"
+                      )
+                      or
+                      home.get(
+                          "moneyline"
+                      )
+                  )
+
+
+                  if (
+                      away_ml is not None
+                      and
+                      home_ml is not None
+                  ):
+
+                      return (
+                          away_ml,
+                          home_ml,
+                      )
+
+
+              return None
+
+
+          # ========================================
+          # LOAD DATA
+          # ========================================
 
           data = recover_existing()
 
@@ -589,7 +907,11 @@ jobs:
           )
 
 
-          scoreboard_url = (
+          # ----------------------------------------
+          # ESPN SCHEDULE / EVENT IDS
+          # ----------------------------------------
+
+          espn = fetch_json(
               ESPN
               +
               "?limit=100&dates="
@@ -598,29 +920,68 @@ jobs:
           )
 
 
-          scoreboard = fetch_json(
-              scoreboard_url
-          )
-
-
-          events = scoreboard.get(
-              "events",
-              [],
-          )
-
-
           print(
               "ESPN events:",
               len(
-                  events
+                  espn.get(
+                      "events",
+                      [],
+                  )
               ),
           )
+
+
+          # ----------------------------------------
+          # ACTION NETWORK PUBLIC JSON
+          # ----------------------------------------
+
+          action_feed_url = action_url(
+              today_et
+          )
+
+
+          try:
+
+              action_payload = fetch_json(
+                  action_feed_url
+              )
+
+
+              action_games = parse_action_games(
+                  action_payload
+              )
+
+
+              print(
+                  "Action Network games:",
+                  len(
+                      action_games
+                  ),
+              )
+
+
+          except Exception as exc:
+
+              print(
+                  "Action Network fetch failed:",
+                  exc,
+              )
+
+
+              action_games = []
 
 
           changed = 0
 
 
-          for event in events:
+          # ========================================
+          # PROCESS ESPN EVENTS
+          # ========================================
+
+          for event in espn.get(
+              "events",
+              [],
+          ):
 
               competitions = (
                   event.get(
@@ -632,6 +993,7 @@ jobs:
 
 
               if not competitions:
+
                   continue
 
 
@@ -647,18 +1009,17 @@ jobs:
               )
 
 
-              competitors = (
-                  competition.get(
-                      "competitors",
-                      [],
-                  )
+              competitors = competition.get(
+                  "competitors",
+                  [],
               )
 
 
               away = next(
                   (
                       team
-                      for team in competitors
+                      for team
+                      in competitors
                       if team.get(
                           "homeAway"
                       )
@@ -672,7 +1033,8 @@ jobs:
               home = next(
                   (
                       team
-                      for team in competitors
+                      for team
+                      in competitors
                       if team.get(
                           "homeAway"
                       )
@@ -683,7 +1045,12 @@ jobs:
               )
 
 
-              if not away or not home:
+              if (
+                  not away
+                  or
+                  not home
+              ):
+
                   continue
 
 
@@ -720,55 +1087,17 @@ jobs:
                   continue
 
 
-              state = (
-                  competition
-                  .get(
-                      "status",
-                      {},
-                  )
-                  .get(
-                      "type",
-                      {},
-                  )
-                  .get(
-                      "state"
-                  )
-              )
-
-
-              kickoff = datetime.fromisoformat(
-                  event[
-                      "date"
-                  ].replace(
-                      "Z",
-                      "+00:00",
-                  )
-              )
-
-
               existing = games.get(
                   game_id
               )
 
 
-              # Preserve previously verified entries
-              # from other sources.
+              # Existing verified record stays forever.
 
-              if (
-                  existing
-                  and
-                  existing.get(
-                      "source"
-                  )
-                  not in (
-                      "ESPN moneyline close",
-                      "ESPN team moneyline",
-                      "ESPN pregame moneyline",
-                  )
-              ):
+              if existing:
 
                   print(
-                      "Preserving verified historical:",
+                      "Preserving:",
                       game_id,
                       away_name,
                       "at",
@@ -778,38 +1107,172 @@ jobs:
                   continue
 
 
-              odds = extract_espn_moneyline(
-                  competition
+              print()
+
+              print(
+                  "LOOKING UP:",
+                  game_id,
+                  away_name,
+                  "at",
+                  home_name,
               )
 
 
-              if odds is None:
+              away_ml = None
+
+              home_ml = None
+
+              source = None
+
+              source_url = None
+
+              odds_timestamp = None
+
+
+              # ====================================
+              # 1. ACTION NETWORK FROZEN PREGAME ROW
+              # ====================================
+
+              action_game = find_action_game(
+                  action_games,
+                  away_name,
+                  home_name,
+              )
+
+
+              if action_game:
+
+                  row = choose_action_row(
+                      action_game
+                  )
+
+
+                  if row:
+
+                      away_ml = row[
+                          "away_ml"
+                      ]
+
+                      home_ml = row[
+                          "home_ml"
+                      ]
+
+                      source = (
+                          "Action Network "
+                          +
+                          row[
+                              "book"
+                          ]
+                          +
+                          " frozen pregame moneyline"
+                      )
+
+                      source_url = (
+                          action_feed_url
+                      )
+
+                      odds_timestamp = (
+                          row.get(
+                              "inserted"
+                          )
+                      )
+
+
+                      print(
+                          "ACTION FOUND:",
+                          row[
+                              "book"
+                          ],
+                          away_ml,
+                          "/",
+                          home_ml,
+                          "| timestamp:",
+                          odds_timestamp,
+                      )
+
+
+              # ====================================
+              # 2. ESPN FALLBACK
+              # ====================================
+
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
+
+                  espn_odds = (
+                      parse_espn_moneyline(
+                          competition
+                      )
+                  )
+
+
+                  if espn_odds:
+
+                      away_ml = (
+                          espn_odds[
+                              0
+                          ]
+                      )
+
+                      home_ml = (
+                          espn_odds[
+                              1
+                          ]
+                      )
+
+                      source = (
+                          "ESPN pregame moneyline"
+                      )
+
+                      source_url = (
+                          ESPN
+                      )
+
+
+                      print(
+                          "ESPN FOUND:",
+                          away_ml,
+                          "/",
+                          home_ml,
+                      )
+
+
+              # ====================================
+              # NOTHING VERIFIED
+              # ====================================
+
+              if (
+                  away_ml is None
+                  or
+                  home_ml is None
+              ):
 
                   print(
-                      "NO ESPN MONEYLINE:",
-                      game_id,
-                      away_name,
-                      "at",
-                      home_name,
-                      "| state:",
-                      state,
+                      "PREGAME_ODDS_UNAVAILABLE"
                   )
 
                   continue
 
 
-              away_ml, home_ml, source = odds
-
+              # ====================================
+              # FAIR NO-VIG PROBABILITY
+              # ====================================
 
               away_prob, home_prob = (
-                  no_vig_probabilities(
+                  no_vig_pair(
                       away_ml,
                       home_ml,
                   )
               )
 
 
-              if home_prob >= away_prob:
+              if (
+                  home_prob
+                  >=
+                  away_prob
+              ):
 
                   favorite = (
                       home_name
@@ -818,7 +1281,6 @@ jobs:
                   favorite_probability = (
                       home_prob
                   )
-
 
               else:
 
@@ -831,40 +1293,20 @@ jobs:
                   )
 
 
-              # Before kickoff:
-              # continue refreshing the stored line.
-              #
-              # At/after kickoff:
-              # freeze the first available pair.
-
-              locked = (
-                  state in (
-                      "in",
-                      "post",
+              kickoff = datetime.fromisoformat(
+                  event[
+                      "date"
+                  ]
+                  .replace(
+                      "Z",
+                      "+00:00",
                   )
-                  or
-                  now_utc >= kickoff
               )
 
 
-              if (
-                  existing
-                  and
-                  existing.get(
-                      "locked"
-                  )
-                  is True
-              ):
-
-                  print(
-                      "Already locked:",
-                      game_id,
-                  )
-
-                  continue
-
-
-              record = {
+              games[
+                  game_id
+              ] = {
 
                   "event_id":
                       game_id,
@@ -914,69 +1356,47 @@ jobs:
                   "source":
                       source,
 
+                  "source_url":
+                      source_url,
+
+                  "odds_timestamp":
+                      odds_timestamp,
+
                   "captured_at":
                       now_utc.isoformat(),
-
-                  "kickoff":
-                      kickoff.isoformat(),
-
-                  "locked":
-                      locked,
               }
 
 
-              old_serialized = (
-                  json.dumps(
-                      existing,
-                      sort_keys=True,
-                  )
-                  if existing
-                  else
-                  None
+              changed += 1
+
+
+              print(
+                  "SAVED:",
+                  game_id,
+                  away_name,
+                  away_ml,
+                  "/",
+                  home_name,
+                  home_ml,
               )
 
 
-              new_serialized = json.dumps(
-                  record,
-                  sort_keys=True,
+              print(
+                  "Favorite:",
+                  favorite,
+                  round(
+                      favorite_probability
+                      *
+                      100,
+                      1,
+                  ),
+                  "%"
               )
 
 
-              if (
-                  old_serialized
-                  !=
-                  new_serialized
-              ):
-
-                  games[
-                      game_id
-                  ] = record
-
-
-                  changed += 1
-
-
-                  print(
-                      "SAVED:",
-                      game_id,
-                      away_name,
-                      away_ml,
-                      "/",
-                      home_name,
-                      home_ml,
-                      "| favorite:",
-                      favorite,
-                      round(
-                          favorite_probability
-                          *
-                          100,
-                          1,
-                      ),
-                      "%",
-                      "| locked:",
-                      locked,
-                  )
-
+          # ========================================
+          # SAVE FILE
+          # ========================================
 
           new_games = json.dumps(
               games,
@@ -1008,6 +1428,8 @@ jobs:
               )
 
 
+              print()
+
               print(
                   "closing-lines.json updated."
               )
@@ -1015,13 +1437,15 @@ jobs:
 
           else:
 
+              print()
+
               print(
                   "No JSON changes."
               )
 
 
           print(
-              "Records changed:",
+              "Records added:",
               changed,
           )
 
@@ -1051,6 +1475,6 @@ jobs:
 
           git add closing-lines.json
 
-          git commit -m "Capture ESPN NFL pregame odds"
+          git commit -m "Capture verified NFL pregame moneylines"
 
           git push
