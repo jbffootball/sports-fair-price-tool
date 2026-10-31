@@ -32,6 +32,22 @@
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
+    "401856735": {
+      "away": "Auburn Tigers",
+      "away_fair_probability": 0.226415,
+      "away_ml": 325,
+      "captured_at": "2026-10-31T18:51:52.624308+00:00",
+      "date": "2026-10-31",
+      "event_id": "401856735",
+      "favorite_probability": 0.773585,
+      "home": "Ole Miss Rebels",
+      "home_fair_probability": 0.773585,
+      "home_ml": -410,
+      "odds_timestamp": "2026-10-31T16:17:10.837841+00:00",
+      "pregame_favorite": "Ole Miss Rebels",
+      "source": "Action Network bet365 pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
     "401856736": {
       "away": "South Carolina Gamecocks",
       "away_fair_probability": 0.396243,
@@ -62,6 +78,22 @@
       "odds_timestamp": "2026-10-31T17:30:10.660048+00:00",
       "pregame_favorite": "Texas Longhorns",
       "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
+    "401856842": {
+      "away": "Arizona Wildcats",
+      "away_fair_probability": 0.380752,
+      "away_ml": 152,
+      "captured_at": "2026-10-31T18:51:52.621037+00:00",
+      "date": "2026-10-31",
+      "event_id": "401856842",
+      "favorite_probability": 0.619248,
+      "home": "Texas Tech Red Raiders",
+      "home_fair_probability": 0.619248,
+      "home_ml": -182,
+      "odds_timestamp": "2026-10-31T15:58:12.036307+00:00",
+      "pregame_favorite": "Texas Tech Red Raiders",
+      "source": "Action Network bet365 pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
     "401856843": {
@@ -160,6 +192,38 @@
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
+    "401858277": {
+      "away": "California Golden Bears",
+      "away_fair_probability": 0.266458,
+      "away_ml": 260,
+      "captured_at": "2026-10-31T18:51:52.622458+00:00",
+      "date": "2026-10-31",
+      "event_id": "401858277",
+      "favorite_probability": 0.733542,
+      "home": "NC State Wolfpack",
+      "home_fair_probability": 0.733542,
+      "home_ml": -325,
+      "odds_timestamp": "2026-10-31T15:30:01.927019+00:00",
+      "pregame_favorite": "NC State Wolfpack",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
+    "401858278": {
+      "away": "SMU Mustangs",
+      "away_fair_probability": 0.732824,
+      "away_ml": -320,
+      "captured_at": "2026-10-31T18:51:52.621529+00:00",
+      "date": "2026-10-31",
+      "event_id": "401858278",
+      "favorite_probability": 0.732824,
+      "home": "Syracuse Orange",
+      "home_fair_probability": 0.267176,
+      "home_ml": 260,
+      "odds_timestamp": "2026-10-31T15:50:33.024347+00:00",
+      "pregame_favorite": "SMU Mustangs",
+      "source": "Action Network bet365 pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
     "401858279": {
       "away": "Boston College Eagles",
       "away_fair_probability": 0.294967,
@@ -205,6 +269,22 @@
       "home_ml": -305,
       "odds_timestamp": "2026-10-31T15:35:30.736+00:00",
       "pregame_favorite": "Pittsburgh Panthers",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
+    "401858282": {
+      "away": "Miami Hurricanes",
+      "away_fair_probability": 0.822335,
+      "away_ml": -600,
+      "captured_at": "2026-10-31T18:51:52.625732+00:00",
+      "date": "2026-10-31",
+      "event_id": "401858282",
+      "favorite_probability": 0.822335,
+      "home": "North Carolina Tar Heels",
+      "home_fair_probability": 0.177665,
+      "home_ml": 440,
+      "odds_timestamp": "2026-10-31T18:09:01.256324+00:00",
+      "pregame_favorite": "Miami Hurricanes",
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
@@ -544,6 +624,38 @@
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261030&periods=event"
     },
+    "401866452": {
+      "away": "Bowling Green Falcons",
+      "away_fair_probability": 0.16,
+      "away_ml": 500,
+      "captured_at": "2026-10-31T18:51:52.623391+00:00",
+      "date": "2026-10-31",
+      "event_id": "401866452",
+      "favorite_probability": 0.84,
+      "home": "Western Michigan Broncos",
+      "home_fair_probability": 0.84,
+      "home_ml": -700,
+      "odds_timestamp": "2026-10-31T15:58:12.793966+00:00",
+      "pregame_favorite": "Western Michigan Broncos",
+      "source": "Action Network bet365 pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
+    "401869846": {
+      "away": "App State Mountaineers",
+      "away_fair_probability": 0.336352,
+      "away_ml": 185,
+      "captured_at": "2026-10-31T18:51:52.625268+00:00",
+      "date": "2026-10-31",
+      "event_id": "401869846",
+      "favorite_probability": 0.663648,
+      "home": "Georgia Southern Eagles",
+      "home_fair_probability": 0.663648,
+      "home_ml": -225,
+      "odds_timestamp": "2026-10-31T18:47:20.895019+00:00",
+      "pregame_favorite": "Georgia Southern Eagles",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
     "401869944": {
       "away": "Coastal Carolina Chanticleers",
       "away_fair_probability": 0.390764,
@@ -625,5 +737,5 @@
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     }
   },
-  "updated_at": "2026-10-31T18:08:55.423462+00:00"
+  "updated_at": "2026-10-31T18:51:53.246329+00:00"
 }
