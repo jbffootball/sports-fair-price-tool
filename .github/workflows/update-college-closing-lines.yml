@@ -1,22 +1,31 @@
+
 name: Update College Pregame Odds
+
 on:
   workflow_dispatch:
   schedule:
     - cron: '*/5 * * * 6'
-    - cron: '*/5 20-23 * * 5'
+    - cron: '*/5 * * * 5'
+    - cron: '*/10 0-6 * * 0'
+    - cron: '*/15 * * * 4'
+
 permissions:
   contents: write
+
 concurrency:
   group: college-closing-lines
   cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Capture verified college pregame moneylines
         shell: bash
         run: |
@@ -31,110 +40,369 @@ jobs:
           ACTION = 'https://api.actionnetwork.com/web/v1/scoreboard/ncaaf'
           BOOKS = {68:'DraftKings',75:'BetMGM',123:'Caesars',79:'bet365',71:'BetRivers'}
           ET = ZoneInfo('America/New_York')
+
           def get(url):
               req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'application/json'})
-              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return json.load(r)
+
+          ALIASES = {
+              'appalachian state':'app state',
+              'appalachian st':'app state',
+              'san jose state':'san jose state',
+              'san jose st':'san jose state',
+              'southern methodist':'smu',
+              'mississippi':'ole miss',
+              'mississippi rebels':'ole miss',
+              'miami fl':'miami',
+              'miami florida':'miami',
+              'california':'cal',
+              'texas christian':'tcu',
+              'central florida':'ucf',
+              'louisiana state':'lsu',
+              'north carolina state':'nc state',
+              'north carolina st':'nc state',
+              'pittsburgh':'pitt',
+          }
+
+          MASCOTS = (
+              ' fighting irish',' golden bears',
+              ' wolfpack',' mountaineers',
+              ' spartans',' eagles',' hurricanes',
+              ' tar heels',' badgers',' hawkeyes',
+              ' rebels',' tigers',' midshipmen',
+              ' mustangs',' orange',' horned frogs',
+              ' wildcats',' bruins',' crimson tide'
+          )
+
           def norm(name):
-              return ' '.join(re.sub(r'[^a-z0-9]+',' ',str(name or '').lower().replace('&','and')).split())
+              name=' '.join(re.sub(
+                  r'[^a-z0-9]+',' ',
+                  str(name or '').lower().replace('&','and')
+              ).split())
+              for suffix in MASCOTS:
+                  if name.endswith(suffix):
+                      name=name[:-len(suffix)]
+              name=re.sub(r'\b(st)\b','state',name)
+              return ALIASES.get(name,name)
+
+          def variants(name):
+              n=norm(name)
+              return {n,ALIASES.get(n,n)}
+
+          def unique_match(action,away_name,home_name):
+              matches=[]
+              for ag in action:
+                  teams={
+                      str(t.get('id')):t
+                      for t in ag.get('teams',[])
+                  }
+                  an=teams.get(
+                      str(ag.get('away_team_id')),{ }
+                  ).get('full_name','')
+                  hn=teams.get(
+                      str(ag.get('home_team_id')),{ }
+                  ).get('full_name','')
+                  if (an and hn
+                      and norm(an) in variants(away_name)
+                      and norm(hn) in variants(home_name)):
+                      matches.append(ag)
+              return matches
+
           def ml(value):
               try:
                   n=int(value)
-                  return n if n != 0 else None
-              except (ValueError,TypeError): return None
-          def implied(n): return (-n/(-n+100)) if n<0 else (100/(n+100))
+                  return n if n!=0 else None
+              except (ValueError,TypeError):
+                  return None
+
+          def implied(n):
+              return -n/(-n+100) if n<0 else 100/(n+100)
+
           def date_of(event):
-              return datetime.fromisoformat(event['date'].replace('Z','+00:00')).astimezone(ET).strftime('%Y-%m-%d')
+              return datetime.fromisoformat(
+                  event['date'].replace('Z','+00:00')
+              ).astimezone(ET).strftime('%Y-%m-%d')
+
           def competitors(event):
               c=event['competitions'][0]['competitors']
-              return (next(x for x in c if x['homeAway']=='away'),next(x for x in c if x['homeAway']=='home'))
+              return (
+                  next(x for x in c if x['homeAway']=='away'),
+                  next(x for x in c if x['homeAway']=='home')
+              )
+
           data={'games':{}}
           if OUT.exists():
               try:
                   existing=json.loads(OUT.read_text())
-                  if isinstance(existing.get('games'),dict): data=existing
+                  if isinstance(existing.get('games'),dict):
+                      data=existing
               except (ValueError,TypeError):
-                  raise RuntimeError('Existing college JSON invalid; refusing to overwrite')
-          games=data['games']; added=0
+                  raise RuntimeError(
+                      'Existing college JSON invalid; refusing to overwrite'
+                  )
+
+          games=data['games']
+          added=0
+          diagnostics=[]
           today=datetime.now(ET).date()
-          for day in (today-timedelta(days=1),today,today+timedelta(days=1)):
+
+          for day in (
+              today-timedelta(days=1),
+              today,
+              today+timedelta(days=2)
+          ):
               ds=day.strftime('%Y%m%d')
               try:
-                  scoreboard=get(f'{ESPN}?dates={ds}&groups=80&limit=500')
+                  scoreboard=get(
+                      f'{ESPN}?dates={ds}&groups=80&limit=500'
+                  )
               except Exception as e:
-                  print('ESPN failed',ds,e); continue
+                  print('ESPN failed',ds,e)
+                  continue
+
               try:
-                  url=f'{ACTION}?bookIds={",".join(map(str,BOOKS))}&date={ds}&periods=event'
+                  url=(
+                      f'{ACTION}?bookIds='
+                      f'{",".join(map(str,BOOKS))}'
+                      f'&date={ds}&periods=event'
+                  )
                   action=get(url).get('games',[])
               except Exception as e:
-                  print('Action Network failed',ds,e); action=[]
-              print(ds,'ESPN',len(scoreboard.get('events',[])),'Action',len(action))
+                  print('Action Network failed',ds,e)
+                  action=[]
+
+              print(
+                  ds,'ESPN',
+                  len(scoreboard.get('events',[])),
+                  'Action',len(action)
+              )
+
               for event in scoreboard.get('events',[]):
                   eid=str(event.get('id',''))
-                  if eid in games: continue
-                  try: away,home=competitors(event)
-                  except (KeyError,IndexError,StopIteration): continue
-                  away_name=away.get('team',{}).get('displayName','')
-                  home_name=home.get('team',{}).get('displayName','')
-                  if not away_name or not home_name: continue
-                  # Full names only: avoid ambiguous college nicknames.
-                  candidates=[]
-                  for ag in action:
-                      teams={str(t.get('id')):t for t in ag.get('teams',[])}
-                      an=teams.get(str(ag.get('away_team_id')),{}).get('full_name','')
-                      hn=teams.get(str(ag.get('home_team_id')),{}).get('full_name','')
-                      if norm(an)==norm(away_name) and norm(hn)==norm(home_name): candidates.append(ag)
+                  if eid in games:
+                      continue
+
+                  try:
+                      away,home=competitors(event)
+                  except (KeyError,IndexError,StopIteration):
+                      continue
+
+                  away_name=away.get(
+                      'team',{}
+                  ).get('displayName','')
+                  home_name=home.get(
+                      'team',{}
+                  ).get('displayName','')
+
+                  if not away_name or not home_name:
+                      continue
+
+                  candidates=unique_match(
+                      action,away_name,home_name
+                  )
+
                   if len(candidates)!=1:
-                      print('NO UNIQUE MATCH',eid,away_name,'at',home_name,'candidates',len(candidates)); continue
-                  ag=candidates[0]; rows=[]
+                      reason=(
+                          'NO_MATCH' if not candidates
+                          else 'AMBIGUOUS_MATCH'
+                      )
+                      diagnostics.append({
+                          'id':eid,
+                          'away':away_name,
+                          'home':home_name,
+                          'reason':reason,
+                          'candidates':len(candidates)
+                      })
+                      print(
+                          reason,eid,away_name,
+                          'at',home_name,
+                          'candidates',len(candidates)
+                      )
+                      continue
+
+                  ag=candidates[0]
+                  rows=[]
+
                   for row in ag.get('odds',[]):
-                      if row.get('type')!='game': continue  # Never live odds.
+                      if row.get('type')!='game':
+                          continue
+
                       bid=row.get('book_id')
-                      if bid not in BOOKS: continue
+                      if bid not in BOOKS:
+                          continue
+
                       st=row.get('line_status') or {}
-                      if st.get('ml_home')==2 or st.get('ml_away')==2: continue
-                      am,hm=ml(row.get('ml_away')),ml(row.get('ml_home'))
+                      if (st.get('ml_home')==2
+                          or st.get('ml_away')==2):
+                          continue
+
+                      am=ml(row.get('ml_away'))
+                      hm=ml(row.get('ml_home'))
+
                       if am is not None and hm is not None:
-                          rows.append((list(BOOKS).index(bid),bid,am,hm,row.get('inserted')))
+                          rows.append((
+                              list(BOOKS).index(bid),
+                              bid,am,hm,row.get('inserted')
+                          ))
+
                   if not rows:
-                      print('NO VERIFIED PREGAME LINE',eid); continue
-                  rows.sort(key=lambda r:r[0]); _,bid,am,hm,ts=rows[0]
-                  # Do not accept a line timestamp known to be after kickoff.
+                      diagnostics.append({
+                          'id':eid,
+                          'away':away_name,
+                          'home':home_name,
+                          'reason':'NO_PREGAME_MONEYLINE'
+                      })
+                      print('NO VERIFIED PREGAME LINE',eid)
+                      continue
+
+                  kickoff=datetime.fromisoformat(
+                      event['date'].replace('Z','+00:00')
+                  )
+
+                  eligible=[]
+                  for item in rows:
+                      ts=item[4]
+                      if ts:
+                          try:
+                              stamped=datetime.fromisoformat(
+                                  str(ts).replace('Z','+00:00')
+                              )
+                              if stamped.tzinfo is None:
+                                  continue
+                              if stamped<=kickoff:
+                                  eligible.append(item)
+                          except ValueError:
+                              pass
+                      elif datetime.now(timezone.utc)<kickoff:
+                          eligible.append(item)
+
+                  if not eligible:
+                      diagnostics.append({
+                          'id':eid,
+                          'away':away_name,
+                          'home':home_name,
+                          'reason':'NO_PREKICKOFF_TIMESTAMP'
+                      })
+                      print(
+                          'REJECT POST-KICKOFF OR UNTIMED LINE',
+                          eid
+                      )
+                      continue
+
+                  eligible.sort(key=lambda r:r[0])
+                  _,bid,am,hm,ts=eligible[0]
+
                   if ts:
                       try:
-                          stamped=datetime.fromisoformat(str(ts).replace('Z','+00:00'))
-                          kickoff=datetime.fromisoformat(event['date'].replace('Z','+00:00'))
+                          stamped=datetime.fromisoformat(
+                              str(ts).replace('Z','+00:00')
+                          )
                           if stamped>kickoff:
-                              print('REJECT POST-KICKOFF LINE',eid,ts); continue
+                              print(
+                                  'REJECT POST-KICKOFF LINE',
+                                  eid,ts
+                              )
+                              continue
                       except ValueError:
-                          print('REJECT UNPARSEABLE TIMESTAMP',eid,ts); continue
-                  ap,hp=implied(am),implied(hm); total=ap+hp
-                  if total<=0: continue
+                          print(
+                              'REJECT UNPARSEABLE TIMESTAMP',
+                              eid,ts
+                          )
+                          continue
+
+                  ap,hp=implied(am),implied(hm)
+                  total=ap+hp
+                  if total<=0:
+                      continue
+
                   ap,hp=ap/total,hp/total
+
                   games[eid]={
-                      'event_id':eid,'date':date_of(event),'away':away_name,'home':home_name,
-                      'away_ml':am,'home_ml':hm,'away_fair_probability':round(ap,6),
+                      'event_id':eid,
+                      'date':date_of(event),
+                      'away':away_name,
+                      'home':home_name,
+                      'away_ml':am,
+                      'home_ml':hm,
+                      'away_fair_probability':round(ap,6),
                       'home_fair_probability':round(hp,6),
-                      'pregame_favorite':away_name if ap>hp else home_name,
-                      'favorite_probability':round(max(ap,hp),6),
-                      'source':f'Action Network {BOOKS[bid]} pregame moneyline',
-                      'source_url':url,'odds_timestamp':ts,
-                      'captured_at':datetime.now(timezone.utc).isoformat()
+                      'pregame_favorite':(
+                          away_name if ap>hp else home_name
+                      ),
+                      'favorite_probability':round(
+                          max(ap,hp),6
+                      ),
+                      'source':(
+                          f'Action Network '
+                          f'{BOOKS[bid]} pregame moneyline'
+                      ),
+                      'source_url':url,
+                      'odds_timestamp':ts,
+                      'captured_at':datetime.now(
+                          timezone.utc
+                      ).isoformat()
                   }
+
                   added+=1
-                  print('SAVED',eid,away_name,am,'at',home_name,hm)
+                  print(
+                      'SAVED',eid,away_name,am,
+                      'at',home_name,hm
+                  )
+
           if added:
-              data['updated_at']=datetime.now(timezone.utc).isoformat()
-              OUT.write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
-          print('New lines:',added,'Total lines:',len(games))
+              data['updated_at']=datetime.now(
+                  timezone.utc
+              ).isoformat()
+              OUT.write_text(
+                  json.dumps(
+                      data,indent=2,sort_keys=True
+                  )+'\n'
+              )
+
+          print(
+              'New lines:',added,
+              'Total lines:',len(games)
+          )
+
+          from collections import Counter
+          summary=Counter(
+              row['reason'] for row in diagnostics
+          )
+          print('Missing reasons:',dict(summary))
+
+          Path('college-odds-diagnostics.json').write_text(
+              json.dumps({
+                  'checked_at':datetime.now(
+                      timezone.utc
+                  ).isoformat(),
+                  'existing_records':len(games),
+                  'new_records':added,
+                  'missing_reasons':dict(summary),
+                  'missing_games':diagnostics
+              },indent=2)+'\n'
+          )
           PY
+
       - name: Commit verified lines
         shell: bash
         run: |
           if [ -z "$(git status --porcelain -- college-closing-lines.json)" ]; then
-            echo 'No new verified lines'; exit 0
+            echo 'No new verified lines'
+            exit 0
           fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add college-closing-lines.json
           git commit -m 'Capture verified college pregame moneylines'
           git push
+
+      - name: Upload missing-odds diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: college-odds-diagnostics
+          path: college-odds-diagnostics.json
+          if-no-files-found: ignore
+          retention-days: 7
