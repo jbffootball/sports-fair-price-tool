@@ -640,6 +640,38 @@
       "source": "Action Network bet365 pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
+    "401866453": {
+      "away": "Ohio Bobcats",
+      "away_fair_probability": 0.791362,
+      "away_ml": -470,
+      "captured_at": "2026-11-01T11:32:11.303306+00:00",
+      "date": "2026-11-03",
+      "event_id": "401866453",
+      "favorite_probability": 0.791362,
+      "home": "Akron Zips",
+      "home_fair_probability": 0.208638,
+      "home_ml": 360,
+      "odds_timestamp": "2026-10-31T22:15:00.615708+00:00",
+      "pregame_favorite": "Ohio Bobcats",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261103&periods=event"
+    },
+    "401866454": {
+      "away": "Buffalo Bulls",
+      "away_fair_probability": 0.330993,
+      "away_ml": 190,
+      "captured_at": "2026-11-01T11:32:11.304057+00:00",
+      "date": "2026-11-03",
+      "event_id": "401866454",
+      "favorite_probability": 0.669007,
+      "home": "Miami (OH) RedHawks",
+      "home_fair_probability": 0.669007,
+      "home_ml": -230,
+      "odds_timestamp": "2026-10-31T22:18:51.021113+00:00",
+      "pregame_favorite": "Miami (OH) RedHawks",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261103&periods=event"
+    },
     "401869846": {
       "away": "App State Mountaineers",
       "away_fair_probability": 0.336352,
@@ -737,5 +769,5 @@
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     }
   },
-  "updated_at": "2026-10-31T18:51:53.246329+00:00"
+  "updated_at": "2026-11-01T11:32:11.304067+00:00"
 }
