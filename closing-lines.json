@@ -352,7 +352,23 @@
       "pregame_favorite": "Washington Commanders",
       "source": "Action Network DraftKings frozen pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261101&periods=event"
+    },
+    "401873036": {
+      "away": "Chicago Bears",
+      "away_fair_probability": 0.390764,
+      "away_ml": 145,
+      "captured_at": "2026-11-02T13:47:48.739952+00:00",
+      "date": "2026-11-02",
+      "event_id": "401873036",
+      "favorite_probability": 0.609236,
+      "home": "Seattle Seahawks",
+      "home_fair_probability": 0.609236,
+      "home_ml": -175,
+      "odds_timestamp": "2026-11-02T13:41:40.229624+00:00",
+      "pregame_favorite": "Seattle Seahawks",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261102&periods=event"
     }
   },
-  "updated_at": "2026-11-01T17:42:48.311665+00:00"
+  "updated_at": "2026-11-02T13:47:48.739952+00:00"
 }
