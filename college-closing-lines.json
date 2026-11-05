@@ -192,6 +192,22 @@
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
+    "401856855": {
+      "away": "TCU Horned Frogs",
+      "away_fair_probability": 0.274247,
+      "away_ml": 250,
+      "captured_at": "2026-11-05T04:16:40.974773+00:00",
+      "date": "2026-11-06",
+      "event_id": "401856855",
+      "favorite_probability": 0.725753,
+      "home": "Arizona Wildcats",
+      "home_fair_probability": 0.725753,
+      "home_ml": -310,
+      "odds_timestamp": "2026-11-05T00:12:40.5643+00:00",
+      "pregame_favorite": "Arizona Wildcats",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261106&periods=event"
+    },
     "401858277": {
       "away": "California Golden Bears",
       "away_fair_probability": 0.266458,
@@ -320,6 +336,22 @@
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
+    "401858288": {
+      "away": "Virginia Tech Hokies",
+      "away_fair_probability": 0.336352,
+      "away_ml": 185,
+      "captured_at": "2026-11-05T04:16:40.972064+00:00",
+      "date": "2026-11-06",
+      "event_id": "401858288",
+      "favorite_probability": 0.663648,
+      "home": "SMU Mustangs",
+      "home_fair_probability": 0.663648,
+      "home_ml": -225,
+      "odds_timestamp": "2026-11-05T04:15:50.6679+00:00",
+      "pregame_favorite": "SMU Mustangs",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261106&periods=event"
+    },
     "401858501": {
       "away": "Minnesota Golden Gophers",
       "away_fair_probability": 0.101142,
@@ -415,6 +447,22 @@
       "pregame_favorite": "Ohio State Buckeyes",
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
+    "401858510": {
+      "away": "Nebraska Cornhuskers",
+      "away_fair_probability": 0.636904,
+      "away_ml": -198,
+      "captured_at": "2026-11-05T04:16:40.973436+00:00",
+      "date": "2026-11-06",
+      "event_id": "401858510",
+      "favorite_probability": 0.636904,
+      "home": "Illinois Fighting Illini",
+      "home_fair_probability": 0.363096,
+      "home_ml": 164,
+      "odds_timestamp": "2026-11-04T21:42:30.543386+00:00",
+      "pregame_favorite": "Nebraska Cornhuskers",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261106&periods=event"
     },
     "401859185": {
       "away": "Notre Dame Fighting Irish",
@@ -576,6 +624,22 @@
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     },
+    "401862818": {
+      "away": "South Florida Bulls",
+      "away_fair_probability": 0.448559,
+      "away_ml": 114,
+      "captured_at": "2026-11-05T04:16:40.972757+00:00",
+      "date": "2026-11-06",
+      "event_id": "401862818",
+      "favorite_probability": 0.551441,
+      "home": "East Carolina Pirates",
+      "home_fair_probability": 0.551441,
+      "home_ml": -135,
+      "odds_timestamp": "2026-11-04T21:22:32.067766+00:00",
+      "pregame_favorite": "East Carolina Pirates",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261106&periods=event"
+    },
     "401864530": {
       "away": "Northern Illinois Huskies",
       "away_fair_probability": 0.080292,
@@ -607,6 +671,22 @@
       "pregame_favorite": "North Dakota State Bison",
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
+    },
+    "401864533": {
+      "away": "New Mexico Lobos",
+      "away_fair_probability": 0.757188,
+      "away_ml": -375,
+      "captured_at": "2026-11-05T04:16:40.974107+00:00",
+      "date": "2026-11-06",
+      "event_id": "401864533",
+      "favorite_probability": 0.757188,
+      "home": "Nevada Wolf Pack",
+      "home_fair_probability": 0.242812,
+      "home_ml": 295,
+      "odds_timestamp": "2026-11-04T14:56:30.489886+00:00",
+      "pregame_favorite": "New Mexico Lobos",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261106&periods=event"
     },
     "401866451": {
       "away": "Kent State Golden Flashes",
@@ -671,6 +751,22 @@
       "pregame_favorite": "Miami (OH) RedHawks",
       "source": "Action Network DraftKings pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261103&periods=event"
+    },
+    "401866456": {
+      "away": "Central Michigan Chippewas",
+      "away_fair_probability": 0.563492,
+      "away_ml": -142,
+      "captured_at": "2026-11-05T04:16:40.338188+00:00",
+      "date": "2026-11-04",
+      "event_id": "401866456",
+      "favorite_probability": 0.563492,
+      "home": "Eastern Michigan Eagles",
+      "home_fair_probability": 0.436508,
+      "home_ml": 120,
+      "odds_timestamp": "2026-11-05T00:27:40.688388+00:00",
+      "pregame_favorite": "Central Michigan Chippewas",
+      "source": "Action Network DraftKings pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261104&periods=event"
     },
     "401869846": {
       "away": "App State Mountaineers",
@@ -769,5 +865,5 @@
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/ncaaf?bookIds=68,75,123,79,71&date=20261031&periods=event"
     }
   },
-  "updated_at": "2026-11-01T11:32:11.304067+00:00"
+  "updated_at": "2026-11-05T04:16:40.974779+00:00"
 }
