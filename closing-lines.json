@@ -368,7 +368,23 @@
       "pregame_favorite": "Seattle Seahawks",
       "source": "Action Network DraftKings frozen pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261102&periods=event"
+    },
+    "401873037": {
+      "away": "Jacksonville Jaguars",
+      "away_fair_probability": 0.786744,
+      "away_ml": -455,
+      "captured_at": "2026-11-06T01:57:15.456180+00:00",
+      "date": "2026-11-05",
+      "event_id": "401873037",
+      "favorite_probability": 0.786744,
+      "home": "Baltimore Ravens",
+      "home_fair_probability": 0.213256,
+      "home_ml": 350,
+      "odds_timestamp": "2026-11-06T01:17:53.51451+00:00",
+      "pregame_favorite": "Jacksonville Jaguars",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261105&periods=event"
     }
   },
-  "updated_at": "2026-11-02T13:47:48.739952+00:00"
+  "updated_at": "2026-11-06T01:57:15.456180+00:00"
 }
