@@ -100,9 +100,42 @@ input[type=range]{width:100%}
 <input id="margin" type="range" min="-7" max="15" value="0" step="1">
 <div class="marks"><span>-7</span><span>0</span><span>+7</span><span>+15</span></div>
 </div>
+<div id="college-extra" class="hidden">
+<div class="card">
+<div class="label">Field position (team with possession)</div>
+<div class="two">
+<button id="field-own" class="active">Own territory</button>
+<button id="field-opp">Opponent territory</button>
+</div>
+<div class="control">Yard line</div>
+<div id="yard-value" class="value">25</div>
+<input id="yard" type="range" min="1" max="50" value="25" step="1">
+<div class="marks"><span>1</span><span>25</span><span>50</span></div>
+<div class="two">
+<button id="field-known" class="active">Position known</button>
+<button id="field-unknown">Unknown</button>
+</div>
+</div>
+<div class="card">
+<div class="label">Down</div>
+<div class="four" id="downs"></div>
+<div class="control">Yards to first down</div>
+<div id="distance-value" class="value">10</div>
+<input id="distance" type="range" min="1" max="30" value="10" step="1">
+</div>
+</div>
+<div class="price">
+<div class="label">FAVORITE WIN PROBABILITY</div>
+<strong id="manual-probability">—</strong>
+<div class="hint" id="manual-model"></div>
+</div>
 <div class="price">
 <div class="label">YES BREAK-EVEN PRICE</div>
 <strong id="manual-price">—</strong>
+</div>
+<div class="card">
+<div class="label">Prediction inputs</div>
+<div id="manual-data-status" class="muted"></div>
 </div>
 </section>
 </main>
@@ -119,6 +152,7 @@ const cache={nfl:{events:[],lines:{},selected:null},cfb:{events:[],lines:{},sele
 const lastConfirmedPossession=new Map();
 const possessionState=new Map();
 let mode="nfl",manualSport="nfl",bin=Object.keys(BINS.nfl)[0],favoriteHasBall=true;
+let fieldSide="own",fieldKnown=true,down=1;
 
 function sigmoid(z){return z>35?1:z< -35?0:1/(1+Math.exp(-z))}
 function logit(p){p=Math.min(.99999,Math.max(.00001,p));return Math.log(p/(1-p))}
@@ -128,14 +162,12 @@ function probability(s,p,m,d,f){
  if(s==="nfl")z+=Math.exp(x[9]+x[10]*t+x[11]*t2)*(f?1:-1);
  return sigmoid(z)
 }
-
 function price(p){return (Math.round(Math.max(0,Math.min(98.5,100*p-1.5))*10)/10).toFixed(1)+"¢"}
 function implied(v){
  if(v===null||v===undefined||v==="")return null;
  const x=Number(v);
  return !Number.isFinite(x)||x===0?null:x<0?-x/(-x+100):100/(x+100)
 }
-
 function rank(c){const r=Number(c?.curatedRank?.current);return Number.isInteger(r)&&r>=1&&r<=25?r:null}
 function ranked(c){return (c?.competitors||[]).some(x=>rank(x)!==null)}
 function clockMinutes(s){
@@ -145,7 +177,6 @@ function clockMinutes(s){
  if(m>15||sec>59)return null;
  return ((4-period)*900+m*60+sec)/60
 }
-
 function side(c,x){return c.competitors?.find(t=>t.homeAway===x)}
 function sign(x){return x>0?"+"+x:String(x)}
 function ml(x){return x>0?"+"+x:String(x)}
@@ -284,22 +315,63 @@ function renderBins(){
    const b=document.createElement("button");
    b.textContent=label;
    b.classList.toggle("active",bin===label);
-   b.onclick=()=>{bin=label;renderBins();renderManual()};
+   b.onclick=()=>{bin=label;renderManual()};
    $("probs").append(b)
+ }
+}
+
+function renderDowns(){
+ $("downs").replaceChildren();
+ for(let i=1;i<=4;i++){
+   const b=document.createElement("button");
+   b.textContent=i+["st","nd","rd","th"][i-1];
+   b.classList.toggle("active",down===i);
+   b.onclick=()=>{down=i;renderManual()};
+   $("downs").append(b);
  }
 }
 
 function renderManual(){
  renderBins();
+ renderDowns();
  $("manual-nfl").classList.toggle("active",manualSport==="nfl");
  $("manual-cfb").classList.toggle("active",manualSport==="cfb");
- $("manual-possession").classList.toggle("hidden",manualSport==="cfb");
+ $("college-extra").classList.toggle("hidden",manualSport!=="cfb");
  $("has-ball").classList.toggle("active",favoriteHasBall);
  $("no-ball").classList.toggle("active",!favoriteHasBall);
+ $("field-own").classList.toggle("active",fieldSide==="own");
+ $("field-opp").classList.toggle("active",fieldSide==="opp");
+ $("field-known").classList.toggle("active",fieldKnown);
+ $("field-unknown").classList.toggle("active",!fieldKnown);
+
  const m=Number($("time").value),d=Number($("margin").value);
+ const yard=Number($("yard").value),distance=Number($("distance").value);
  $("time-value").textContent=m+" min";
  $("score-value").textContent=sign(d);
- $("manual-price").textContent=price(probability(manualSport,BINS[manualSport][bin],m,d,favoriteHasBall))
+ $("yard-value").textContent=yard;
+ $("distance-value").textContent=distance;
+
+ const p=probability(manualSport,BINS[manualSport][bin],m,d,favoriteHasBall);
+ $("manual-probability").textContent=(p*100).toFixed(1)+"%";
+ $("manual-price").textContent=price(p);
+ $("manual-model").textContent=manualSport==="cfb"
+   ?"Current College baseline (not Model C)"
+   :"Current NFL model";
+
+ const lines=[
+   "Pregame probability: available (category midpoint)",
+   "Score differential: available",
+   "Game clock: available"
+ ];
+ if(manualSport==="cfb"){
+   lines.push("Possession: "+(favoriteHasBall?"favorite":"opponent")+" (entered; not yet used by College baseline)");
+   lines.push("Field position: "+(fieldKnown?(fieldSide==="own"?"own ":"opponent ")+yard:"unknown")+" (not yet used by College baseline)");
+   lines.push("Down/distance: "+down+" and "+distance+" yards (not yet used by College baseline)");
+   lines.push("Full Model C coefficients: not yet integrated");
+ }else{
+   lines.push("Possession: "+(favoriteHasBall?"favorite":"opponent")+" (used by NFL model)");
+ }
+ $("manual-data-status").textContent=lines.join(" • ");
 }
 
 for(const s of ["nfl","cfb","manual"])$("tab-"+s).onclick=()=>switchMode(s);
@@ -308,8 +380,14 @@ for(const s of ["nfl","cfb"])$("manual-"+s).onclick=()=>{
 };
 $("has-ball").onclick=()=>{favoriteHasBall=true;renderManual()};
 $("no-ball").onclick=()=>{favoriteHasBall=false;renderManual()};
+$("field-own").onclick=()=>{fieldSide="own";renderManual()};
+$("field-opp").onclick=()=>{fieldSide="opp";renderManual()};
+$("field-known").onclick=()=>{fieldKnown=true;renderManual()};
+$("field-unknown").onclick=()=>{fieldKnown=false;renderManual()};
 $("time").oninput=renderManual;
 $("margin").oninput=renderManual;
+$("yard").oninput=renderManual;
+$("distance").oninput=renderManual;
 renderManual();
 load("nfl");
 setInterval(()=>{if(mode!=="manual")load(mode)},15000);
