@@ -38,11 +38,13 @@ button.active{background:#15243b;outline:2px solid #5ea3ff}
 input[type=range]{width:100%}
 .marks{display:flex;justify-content:space-between;color:#9fb0c5;font-size:11px}
 .hint{text-align:center;margin-top:8px}
+.pct{font-size:27px;font-weight:900;text-align:center;margin:10px 0;color:#fff}
 .data-status .row span:last-child{font-size:12px}
 .data-status .label{margin-top:0}
 .good{color:#4ade80!important}
 .warn{color:#facc15!important}
 .bad{color:#fda4af!important}
+select{width:100%;background:#0b1220;color:#fff;border:1px solid #2a3850;border-radius:10px;padding:12px;font-size:15px}
 @media(min-width:560px){.four{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
@@ -50,7 +52,6 @@ input[type=range]{width:100%}
 <main class="wrap">
 <h1>Football Fair-Price Lookup</h1>
 <div class="muted">Live NFL • College Top 25 • Manual • 1.5¢ pricing buffer</div>
-
 <div class="tabs">
 <button id="tab-nfl" class="active">NFL</button>
 <button id="tab-cfb">College</button>
@@ -61,7 +62,6 @@ input[type=range]{width:100%}
 <div class="status" id="status">Loading games…</div>
 <div class="label">Live games</div>
 <div id="games" class="games"></div>
-
 <div id="details" class="hidden">
 <div class="card">
 <div id="teams" class="teams"></div>
@@ -71,7 +71,7 @@ input[type=range]{width:100%}
 <div class="row"><span>Closing moneyline</span><span id="moneyline">—</span></div>
 <div class="row"><span>Pregame probability</span><span id="pregame">—</span></div>
 <div class="row"><span>Favorite score differential</span><span id="diff">—</span></div>
-<div class="row" id="possession-row"><span>Possession</span><span id="possession">—</span></div>
+<div class="row"><span>Possession</span><span id="possession">—</span></div>
 <div class="hint" id="lastplay"></div>
 </div>
 
@@ -105,6 +105,7 @@ input[type=range]{width:100%}
 <button id="has-ball" class="active">Favorite has ball</button>
 <button id="no-ball">Opponent has ball</button>
 </div>
+<div class="hint" id="manual-possession-note"></div>
 </div>
 
 <div class="card">
@@ -136,12 +137,10 @@ input[type=range]{width:100%}
 
 <script>
 "use strict";
-
 const $=id=>document.getElementById(id);
 
 const NFL_URL="https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=100";
 const CFB_URL="https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?groups=80&limit=500";
-
 const NFL_LINES="closing-lines.json";
 const CFB_LINES="college-closing-lines.json";
 
@@ -152,11 +151,7 @@ const NFL=[
 -0.688165477,-4.20984841,3.37125392
 ];
 
-const CFB=[
--1.32202390,4.33068028,-3.11739263,
--0.17624777,0.13508128,0.80771874,
--0.87799969,-2.91181985,0.36748140
-];
+const CFB_ADJUST=[-0.4079769234,0.2949807996,0.0000000000,0.2814245927];
 
 const BINS={
 nfl:{
@@ -174,445 +169,381 @@ cfb:{
 };
 
 const cache={
-nfl:{events:[],lines:{},selected:null,updated:0},
-cfb:{events:[],lines:{},selected:null,updated:0}
+nfl:{events:[],lines:{},selected:null},
+cfb:{events:[],lines:{},selected:null}
 };
-
+const lastConfirmedPossession=new Map();
 const possessionState=new Map();
+
 let mode="nfl";
 let manualSport="nfl";
 let bin=Object.keys(BINS.nfl)[0];
 let favoriteHasBall=true;
 
 function sigmoid(z){
- return z>35?1:z< -35?0:1/(1+Math.exp(-z));
+  return z>35?1:z< -35?0:1/(1+Math.exp(-z));
 }
 function logit(p){
- p=Math.min(.99999,Math.max(.00001,p));
- return Math.log(p/(1-p));
+  p=Math.min(.99999,Math.max(.00001,p));
+  return Math.log(p/(1-p));
 }
 function probability(s,p,m,d,f){
- const x=s==="nfl"?NFL:CFB;
- const t=m/60,t2=t*t;
- let z=x[0]+x[1]*t+x[2]*t2
- +Math.exp(x[3]+x[4]*t+x[5]*t2)*logit(p)
- +Math.exp(x[6]+x[7]*t+x[8]*t2)*d;
- if(s==="nfl"){
-  z+=Math.exp(x[9]+x[10]*t+x[11]*t2)*(f?1:-1);
- }
- return sigmoid(z);
+  if(s==="cfb"){
+    const u=Math.max(0,Math.min(1,1-m/60));
+    const lead=Math.max(-21,Math.min(21,d));
+    const b=CFB_ADJUST;
+    return sigmoid(logit(p)+b[0]*u+b[1]*u*lead+b[2]*u*u*lead+b[3]*u*(f?1:-1));
+  }
+  const x=NFL,t=m/60,t2=t*t;
+  const z=x[0]+x[1]*t+x[2]*t2+
+    Math.exp(x[3]+x[4]*t+x[5]*t2)*logit(p)+
+    Math.exp(x[6]+x[7]*t+x[8]*t2)*d+
+    Math.exp(x[9]+x[10]*t+x[11]*t2)*(f?1:-1);
+  return sigmoid(z);
 }
+
 function price(p){
- return (Math.round(
-  Math.max(0,Math.min(98.5,100*p-1.5))*10
- )/10).toFixed(1)+"¢";
+  return (Math.round(Math.max(0,Math.min(98.5,100*p-1.5))*10)/10).toFixed(1)+"¢";
 }
 function implied(v){
- if(v===null||v===undefined||v==="")return null;
- const x=Number(v);
- return !Number.isFinite(x)||x===0?null:
- x<0?-x/(-x+100):100/(x+100);
+  if(v===null||v===undefined||v==="")return null;
+  const x=Number(v);
+  return !Number.isFinite(x)||x===0?null:
+  x<0?-x/(-x+100):100/(x+100);
 }
 function rank(c){
- const r=Number(c?.curatedRank?.current);
- return Number.isInteger(r)&&r>=1&&r<=25?r:null;
+  const r=Number(c?.curatedRank?.current);
+  return Number.isInteger(r)&&r>=1&&r<=25?r:null;
 }
 function ranked(c){
- return (c?.competitors||[]).some(x=>rank(x)!==null);
+  return (c?.competitors||[]).some(x=>rank(x)!==null);
 }
 function clockMinutes(s){
- const period=Number(s?.period);
- const clock=String(s?.displayClock||"");
- if(period<1||period>4||!/^\d+:\d{2}$/.test(clock))return null;
- const [m,sec]=clock.split(":").map(Number);
- if(m>15||sec>59)return null;
- return ((4-period)*900+m*60+sec)/60;
+  const period=Number(s?.period);
+  const clock=String(s?.displayClock||"");
+  if(period<1||period>4||!/^\d+:\d{2}$/.test(clock))return null;
+  const [m,sec]=clock.split(":").map(Number);
+  if(m>15||sec>59)return null;
+  return ((4-period)*900+m*60+sec)/60;
 }
 function side(c,x){
- return c?.competitors?.find(t=>t.homeAway===x);
+  return c?.competitors?.find(t=>t.homeAway===x);
 }
 function sign(x){
- return x>0?"+"+x:String(x);
+  return x>0?"+"+x:String(x);
 }
 function ml(x){
- return x>0?"+"+x:String(x);
+  return x>0?"+"+x:String(x);
 }
 
-function possession(e,a,h,sit,s){
- const id=s+":"+String(e.id);
- const reported=String(sit.possession||"");
- const confirmed=
-  reported===String(a.id)||reported===String(h.id);
- const away=Number(a.score),home=Number(h.score);
- const prior=possessionState.get(id);
+function inferredPossession(e,a,h,sit,s){
+  const id=s+":"+String(e.id);
+  const away=Number(a.score),home=Number(h.score);
+  const reported=String(sit.possession||"");
+  const confirmed=reported===String(a.id)||reported===String(h.id);
+  const prior=possessionState.get(id);
 
- let inferred="";
- let pending=false;
+  if(!Number.isFinite(away)||!Number.isFinite(home)){
+  return {
+   pos:confirmed?reported:lastConfirmedPossession.get(id)||"",
+   assumed:!confirmed
+  };
+  }
 
- if(prior&&Number.isFinite(away)&&Number.isFinite(home)){
+  let pending=prior?.pending||"";
+  let stale=prior?.stale||"";
+  let scoringClock=prior?.scoringClock||"";
+  const clock=String(e.competitions?.[0]?.status?.displayClock||"");
+  const period=String(e.competitions?.[0]?.status?.period||"");
+
+  if(prior){
   const da=away-prior.away,dh=home-prior.home;
   if((da>0&&dh===0)||(dh>0&&da===0)){
-   inferred=da>0?String(h.id):String(a.id);
-   pending=true;
-  }else if(prior.pending&&prior.inferred){
-   inferred=prior.inferred;
-   pending=!(confirmed&&reported===inferred);
+   const scoringTeam=da>0?String(a.id):String(h.id);
+   pending=scoringTeam===String(a.id)?String(h.id):String(a.id);
+   stale=prior.reported||"";
+   scoringClock=period+":"+clock;
+  }else if(pending&&confirmed&&reported===pending){
+   pending="";
+  }else if(pending&&confirmed&&reported!==stale&&stale){
+   pending="";
+  }else if(pending&&confirmed&&reported===stale&&period+":"+clock!==scoringClock){
+   const play=String(sit.lastPlay?.id||sit.lastPlay?.text||"");
+   if(prior.play&&play&&play!==prior.play)pending="";
   }
- }
+  }
 
- const pos=pending?inferred:
-  confirmed?reported:prior?.pos||"";
+  const play=String(sit.lastPlay?.id||sit.lastPlay?.text||"");
+  possessionState.set(id,{
+  away,home,
+  reported:confirmed?reported:prior?.reported||"",
+  pending,stale,scoringClock,play
+  });
 
- const status=pending?"Inferred":
-  confirmed?"Verified":
-  pos?"Stale":"Missing";
+  const pos=pending||(confirmed?reported:lastConfirmedPossession.get(id)||"");
+  if(confirmed&&!pending)lastConfirmedPossession.set(id,reported);
 
- possessionState.set(id,{
-  away,home,pos,inferred,pending,status
- });
-
- return {pos,status};
+  return {pos,assumed:!!pending||!confirmed};
 }
 
 function state(e,s){
- const c=e.competitions?.[0];
- const a=side(c,"away"),h=side(c,"home");
- if(!a||!h)return null;
+  const c=e.competitions?.[0];
+  const a=side(c,"away"),h=side(c,"home");
+  if(!a||!h)return null;
 
- const l=cache[s].lines[String(e.id)];
- const sit=c.situation||{};
- const period=c.status?.period;
- const clock=c.status?.displayClock;
- const remaining=clockMinutes(c.status);
- const status=c.status?.type?.state;
+  const l=cache[s].lines[String(e.id)];
+  const sit=c.situation||{};
+  const period=c.status?.period;
+  const clock=c.status?.displayClock;
+  const remaining=clockMinutes(c.status);
+  const status=c.status?.type?.state;
+  const b={id:String(e.id),a,h,period,clock,remaining,status,l,sit};
 
- const pstate=possession(e,a,h,sit,s);
- const pos=pstate.pos;
- const known=pos===String(a.id)||pos===String(h.id);
+  const inf=inferredPossession(e,a,h,sit,s);
+  const pos=inf.pos;
+  const known=pos===String(a.id)||pos===String(h.id);
+  const assumed=known&&inf.assumed;
 
- const b={
-  id:String(e.id),a,h,period,clock,remaining,
-  status,l,sit,pos,known,
-  possessionStatus:pstate.status
- };
+  const base={...b,pos,known,assumed,confirmed:known&&!assumed};
 
- if(!l)return b;
+  if(!l)return base;
 
- const ap=implied(l.away_ml),hp=implied(l.home_ml);
- if(ap===null||hp===null||ap+hp<=0)return b;
+  const ap=implied(l.away_ml),hp=implied(l.home_ml);
+  if(ap===null||hp===null||ap+hp<=0)return base;
 
- const f=hp>=ap?h:a;
- const o=f===h?a:h;
- const p=Math.max(ap,hp)/(ap+hp);
- const fs=Number(f.score),os=Number(o.score);
- const d=Number.isFinite(fs)&&Number.isFinite(os)
-  ?fs-os:null;
- const fball=known&&pos===String(f.id);
- const valid=s==="cfb"||known;
+  const f=hp>=ap?h:a;
+  const o=f===h?a:h;
+  const p=Math.max(ap,hp)/(ap+hp);
+  const fs=Number(f.score),os=Number(o.score);
+  const d=Number.isFinite(fs)&&Number.isFinite(os)?fs-os:null;
+  const fball=known&&pos===String(f.id);
+  const valid=known;
 
- const pr=remaining!==null&&status==="in"&&
-  valid&&d!==null
+  const pr=remaining!==null&&status==="in"&&valid&&d!==null
   ?probability(s,p,remaining,d,fball):null;
 
- return {
-  ...b,f,o,p,d,fball,
+  return {
+  ...base,f,o,p,d,fball,
   ml:f===h?l.home_ml:l.away_ml,pr
- };
+  };
 }
 
-function addStatus(target,name,status){
- const row=document.createElement("div");
- row.className="row";
- const a=document.createElement("span");
- const b=document.createElement("span");
- a.textContent=name;
- b.textContent=status;
- b.className=status.startsWith("Missing")?"bad":
-  status.startsWith("Inferred")||
-  status.startsWith("Stale")||
-  status.startsWith("Unverified")||
-  status.startsWith("Estimated")?"warn":"good";
- row.append(a,b);
- $(target).append(row);
+function addStatus(target,name,status,used){
+  const row=document.createElement("div");
+  row.className="row";
+  const a=document.createElement("span");
+  const b=document.createElement("span");
+  a.textContent=name;
+  b.textContent=status+" · "+(used?"Used":"Not used");
+  b.className=status.startsWith("Missing")?"bad":
+  status.startsWith("Inferred")||status.startsWith("Last")||status.includes("unverified")||status.includes("check provenance")?"warn":"good";
+  row.append(a,b);
+  $(target).append(row);
 }
 
 function liveDataStatus(g,s){
- $("live-data-status").replaceChildren();
+  const target=$("live-data-status");
+  target.replaceChildren();
 
- addStatus("live-data-status","Pregame probability",
-  Number.isFinite(g.p)
-   ?"Unverified — odds loaded"
-   :"Missing");
+  const scoreOK=g.d!==undefined&&g.d!==null;
+  const clockOK=g.remaining!==null;
+  const oddsOK=Number.isFinite(g.p);
 
- addStatus("live-data-status","Score differential",
-  g.d!==undefined&&g.d!==null
-   ?"Verified — ESPN reported"
-   :"Missing");
-
- addStatus("live-data-status","Game clock",
-  g.remaining!==null
-   ?"Verified — ESPN reported"
-   :"Missing");
-
- if(s==="nfl"){
+  addStatus("live-data-status","Pregame probability",
+  oddsOK?"Loaded (source unverified)":"Missing",true);
+  addStatus("live-data-status","Score differential",
+  scoreOK?"ESPN reported":"Missing",true);
+  addStatus("live-data-status","Game clock",
+  clockOK?"ESPN reported":"Missing",true);
   addStatus("live-data-status","Possession",
-   g.possessionStatus);
- }
+  g.confirmed?"ESPN reported":g.assumed?"Inferred":"Missing",
+  true);
 
- $("live-model-note").textContent=s==="nfl"
-  ?"NFL: pregame strength, score, clock and possession."
-  :"College: pregame strength, score and clock. Possession model pending validation.";
+  $("live-model-note").textContent=s==="nfl"?
+  "NFL inputs: pregame strength, score, clock, possession.":
+  "College model: corrected 2023–2025 favorite labels, score, clock, and possession; pregame anchored to loaded odds. Estimated price, not a guarantee.";
 }
 
 function switchMode(s){
- mode=s;
- for(const x of ["nfl","cfb","manual"]){
+  mode=s;
+  for(const x of ["nfl","cfb","manual"]){
   $("tab-"+x).classList.toggle("active",x===s);
- }
- $("live").classList.toggle("hidden",s==="manual");
- $("manual").classList.toggle("hidden",s!=="manual");
- if(s==="manual")renderManual();
- else{renderLive();load(s);}
+  }
+  $("live").classList.toggle("hidden",s==="manual");
+  $("manual").classList.toggle("hidden",s!=="manual");
+  if(s==="manual")renderManual();
+  else{renderLive();load(s);}
 }
 
 function renderLive(){
- if(mode==="manual")return;
- const s=mode,c=cache[s];
- const games=c.events.map(e=>state(e,s)).filter(Boolean);
+  if(mode==="manual")return;
+  const s=mode,c=cache[s];
+  const games=c.events.map(e=>state(e,s)).filter(Boolean);
 
- if(c.selected===null||
-  !games.some(g=>g.id===c.selected)){
+  if(c.selected===null||!games.some(g=>g.id===c.selected)){
   c.selected=games[0]?.id||null;
- }
+  }
+  $("games").replaceChildren();
 
- $("games").replaceChildren();
-
- for(const g of games){
+  for(const g of games){
   const b=document.createElement("button");
-  b.className="game"+(
-   g.id===c.selected?" active":""
-  );
+  b.className="game"+(g.id===c.selected?" active":"");
   const r=x=>s==="cfb"&&rank(x)?"#"+rank(x)+" ":"";
-
   const title=document.createElement("div");
-  title.textContent=
-   r(g.a)+g.a.team.abbreviation+" "+
-   (g.a.score??"0")+" — "+
-   r(g.h)+g.h.team.abbreviation+" "+
-   (g.h.score??"0");
-
+  title.textContent=r(g.a)+g.a.team.abbreviation+" "+
+   (g.a.score??"0")+" — "+r(g.h)+g.h.team.abbreviation+
+   " "+(g.h.score??"0");
   const small=document.createElement("small");
-  small.textContent=
-   (g.status==="in"
-    ?"Q"+g.period+" "+g.clock
-    :g.status==="pre"?"Upcoming":"Final")+
-   " • "+(g.l?"Pregame line loaded":
-   "Waiting for pregame line");
-
+  small.textContent=(g.status==="in"?"Q"+g.period+" "+g.clock:
+   g.status==="pre"?"Upcoming":"Final")+" • "+
+   (g.l?"Pregame line loaded":"Waiting for pregame line");
   b.append(title,small);
-  b.onclick=()=>{
-   c.selected=g.id;
-   renderLive();
-  };
+  b.onclick=()=>{c.selected=g.id;renderLive();};
   $("games").append(b);
- }
+  }
 
- const g=games.find(x=>x.id===c.selected);
- $("details").classList.toggle("hidden",!g);
- if(!g)return;
+  const g=games.find(x=>x.id===c.selected);
+  $("details").classList.toggle("hidden",!g);
+  if(!g)return;
 
- $("teams").textContent=
-  g.a.team.displayName+" at "+g.h.team.displayName;
- $("score").textContent=
-  (g.a.score??0)+" – "+(g.h.score??0);
- $("clock").textContent=
-  g.status==="in"
-   ?"Q"+g.period+" "+g.clock
-   :g.status==="pre"?"Upcoming":"Final";
+  $("teams").textContent=g.a.team.displayName+" at "+g.h.team.displayName;
+  $("score").textContent=(g.a.score??0)+" – "+(g.h.score??0);
+  $("clock").textContent=g.status==="in"?
+  "Q"+g.period+" "+g.clock:
+  g.status==="pre"?"Upcoming":"Final";
+  $("favorite").textContent=g.f?.team.displayName||"Awaiting verified odds";
+  $("moneyline").textContent=g.f?ml(g.ml):"—";
+  $("pregame").textContent=Number.isFinite(g.p)?
+  (g.p*100).toFixed(1)+"%":"—";
+  $("diff").textContent=g.d===undefined||g.d===null?"—":sign(g.d);
+  $("possession").parentElement.classList.remove("hidden");
+  $("possession").textContent=g.known?
+  (g.pos===String(g.a.id)?g.a.team.displayName:g.h.team.displayName)+
+  (g.assumed?" (inferred / last known)":" (ESPN reported)"):"Unknown";
+  $("lastplay").textContent=g.sit.lastPlay?.text?
+  "Last play: "+g.sit.lastPlay.text:"";
 
- $("favorite").textContent=
-  g.f?.team.displayName||"Awaiting pregame odds";
- $("moneyline").textContent=
-  g.f?ml(g.ml):"—";
- $("pregame").textContent=
-  Number.isFinite(g.p)
-   ?(g.p*100).toFixed(1)+"%":"—";
- $("diff").textContent=
-  g.d===undefined||g.d===null?"—":sign(g.d);
+  $("live-price").textContent=Number.isFinite(g.pr)?price(g.pr):"—";
 
- $("possession-row").classList.toggle(
-  "hidden",s!=="nfl"
- );
- $("possession").textContent=g.known
-  ?(
-   g.pos===String(g.a.id)
-    ?g.a.team.displayName:g.h.team.displayName
-   )+" ("+g.possessionStatus+")"
-  :"Unknown";
-
- $("lastplay").textContent=
-  g.sit.lastPlay?.text
-   ?"Last play: "+g.sit.lastPlay.text:"";
-
- $("live-price").textContent=
-  Number.isFinite(g.pr)?price(g.pr):"—";
-
- $("reason").textContent=
-  !g.f?"Pregame moneyline unavailable":
-  g.status!=="in"?"Live regulation only":
+  $("reason").textContent=!g.f?
+  "Pregame moneyline unavailable or invalid":
+  g.status!=="in"?"Price shown during live regulation only":
   g.remaining===null?"Regulation clock unavailable":
-  s==="nfl"&&!g.known?
-   "Possession missing — prediction unavailable":
-  g.possessionStatus==="Stale"?
-   "Caution: possession is stale":
-  "Model estimate with 1.5¢ pricing buffer";
+  !g.known?"Waiting for first known possession":
+  g.assumed?
+  "Estimated using inferred or last known possession":"";
 
- liveDataStatus(g,s);
+  liveDataStatus(g,s);
 }
 
 async function load(s){
- try{
+  try{
   const u=s==="nfl"?NFL_URL:CFB_URL;
   const lf=s==="nfl"?NFL_LINES:CFB_LINES;
   const [er,lr]=await Promise.all([
    fetch(u+"&_="+Date.now(),{cache:"no-store"}),
    fetch(lf+"?_="+Date.now(),{cache:"no-store"})
   ]);
-
   if(!er.ok)throw Error("ESPN HTTP "+er.status);
   const data=await er.json();
 
   if(lr.ok){
    const d=await lr.json();
-   if(d.games&&typeof d.games==="object"){
-    cache[s].lines=d.games;
-   }
+   if(d.games&&typeof d.games==="object")cache[s].lines=d.games;
   }
 
   cache[s].events=(data.events||[]).filter(e=>{
    const c=e.competitions?.[0];
-   return c&&(
-    s==="nfl"
-     ?c.status?.type?.state==="in"
-     :c.status?.type?.state==="in"&&ranked(c)
-   );
+   return c&&(s==="nfl"?
+    c.status?.type?.state==="in":
+    c.status?.type?.state==="in"&&ranked(c));
   });
-
-  cache[s].updated=Date.now();
 
   if(mode===s){
    const n=cache[s].events.length;
    const matched=cache[s].events.filter(
     e=>cache[s].lines[String(e.id)]
    ).length;
-
    $("status").textContent=
     (s==="nfl"?"Live NFL":"Live Top 25")+
-    " • "+n+" games • "+
-    matched+" pregame lines matched";
-
+    " • "+n+" games • "+matched+" pregame lines matched";
    renderLive();
   }
- }catch(e){
-  if(mode===s){
-   $("status").textContent=
-    "STALE — refresh failed: "+e.message;
-  }
+  }catch(e){
+  if(mode===s)$("status").textContent="STALE — refresh failed: "+e.message;
   console.error(e);
- }
+  }
 }
 
 function renderBins(){
- const labels=Object.keys(BINS[manualSport]);
- if(!labels.includes(bin))bin=labels[0];
- $("probs").replaceChildren();
+  const labels=Object.keys(BINS[manualSport]);
+  if(!labels.includes(bin))bin=labels[0];
+  $("probs").replaceChildren();
 
- for(const label of labels){
+  for(const label of labels){
   const b=document.createElement("button");
   b.textContent=label;
   b.classList.toggle("active",bin===label);
-  b.onclick=()=>{
-   bin=label;
-   renderManual();
-  };
+  b.onclick=()=>{bin=label;renderManual();};
   $("probs").append(b);
- }
+  }
 }
 
 function renderManual(){
- renderBins();
- $("manual-nfl").classList.toggle(
-  "active",manualSport==="nfl"
- );
- $("manual-cfb").classList.toggle(
-  "active",manualSport==="cfb"
- );
- $("manual-possession-controls").classList.toggle(
-  "hidden",manualSport!=="nfl"
- );
- $("has-ball").classList.toggle(
-  "active",favoriteHasBall
- );
- $("no-ball").classList.toggle(
-  "active",!favoriteHasBall
- );
+  renderBins();
+  $("manual-nfl").classList.toggle("active",manualSport==="nfl");
+  $("manual-cfb").classList.toggle("active",manualSport==="cfb");
+  $("has-ball").classList.toggle("active",favoriteHasBall);
+  $("manual-possession-controls").classList.remove("hidden");
+  $("no-ball").classList.toggle("active",!favoriteHasBall);
 
- const m=Number($("time").value);
- const d=Number($("margin").value);
- const p0=BINS[manualSport][bin];
- const p=probability(
-  manualSport,p0,m,d,favoriteHasBall
- );
+  const m=Number($("time").value);
+  const d=Number($("margin").value);
+  const p0=BINS[manualSport][bin];
+  const p=probability(manualSport,p0,m,d,favoriteHasBall);
 
- $("time-value").textContent=m+" min";
- $("score-value").textContent=sign(d);
- $("manual-price").textContent=price(p);
+  $("time-value").textContent=m+" min";
+  $("score-value").textContent=sign(d);
+  $("manual-price").textContent=price(p);
 
- $("manual-model-label").textContent=
-  manualSport==="nfl"
-   ?"NFL possession model"
-   :"College baseline — possession adjustment pending";
+  $("manual-possession-note").textContent=manualSport==="nfl"?
+  "Possession affects the NFL prediction.":
+  "Possession affects the College prediction.";
 
- $("manual-data-status").replaceChildren();
- addStatus("manual-data-status","Pregame probability",
-  "Estimated — historical category");
- addStatus("manual-data-status","Score differential",
-  "Manually entered");
- addStatus("manual-data-status","Game clock",
-  "Manually entered");
+  $("manual-model-label").textContent=manualSport==="nfl"?
+  "Current NFL model":
+  "Corrected 2023–2025 College possession model";
 
- if(manualSport==="nfl"){
+  $("manual-data-status").replaceChildren();
+  addStatus("manual-data-status","Pregame probability",
+  "Category estimate",true);
+  addStatus("manual-data-status","Score differential",
+  "Manually entered",true);
+  addStatus("manual-data-status","Game clock",
+  "Manually entered",true);
   addStatus("manual-data-status","Possession",
-   "Manually entered");
- }
+  "Manually entered",true);
 }
 
 for(const s of ["nfl","cfb","manual"]){
- $("tab-"+s).onclick=()=>switchMode(s);
+  $("tab-"+s).onclick=()=>switchMode(s);
 }
 for(const s of ["nfl","cfb"]){
- $("manual-"+s).onclick=()=>{
+  $("manual-"+s).onclick=()=>{
   manualSport=s;
   bin=Object.keys(BINS[s])[0];
   renderManual();
- };
+  };
 }
-$("has-ball").onclick=()=>{
- favoriteHasBall=true;
- renderManual();
-};
-$("no-ball").onclick=()=>{
- favoriteHasBall=false;
- renderManual();
-};
+$("has-ball").onclick=()=>{favoriteHasBall=true;renderManual();};
+$("no-ball").onclick=()=>{favoriteHasBall=false;renderManual();};
 $("time").oninput=renderManual;
 $("margin").oninput=renderManual;
 
 renderManual();
 load("nfl");
-
 setInterval(()=>{
- if(mode!=="manual")load(mode);
+  if(mode!=="manual")load(mode);
 },5000);
 </script>
 </body>
