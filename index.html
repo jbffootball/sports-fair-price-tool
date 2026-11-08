@@ -76,6 +76,8 @@ select{width:100%;background:#0b1220;color:#fff;border:1px solid #2a3850;border-
 </div>
 
 <div class="price">
+<div class="label">CURRENT LIVE WIN PROBABILITY</div>
+<div id="live-probability" class="pct">—</div>
 <div class="label">YES MAX ENTRY PRICE</div>
 <strong id="live-price">—</strong>
 <div class="hint" id="reason"></div>
@@ -452,6 +454,8 @@ function renderLive(){
   $("lastplay").textContent=g.sit.lastPlay?.text?
   "Last play: "+g.sit.lastPlay.text:"";
 
+  $("live-probability").textContent=
+    Number.isFinite(g.pr)?(g.pr*100).toFixed(1)+"%":"—";
   $("live-price").textContent=Number.isFinite(g.pr)?price(g.pr):"—";
 
   $("reason").textContent=!g.f?
