@@ -592,7 +592,23 @@
       "pregame_favorite": "Chicago Bears",
       "source": "Action Network DraftKings frozen pregame moneyline",
       "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261108&periods=event"
+    },
+    "401873051": {
+      "away": "Buffalo Bills",
+      "away_fair_probability": 0.609236,
+      "away_ml": -175,
+      "captured_at": "2026-11-09T05:44:46.512260+00:00",
+      "date": "2026-11-09",
+      "event_id": "401873051",
+      "favorite_probability": 0.609236,
+      "home": "Minnesota Vikings",
+      "home_fair_probability": 0.390764,
+      "home_ml": 145,
+      "odds_timestamp": "2026-11-09T05:23:16.642117+00:00",
+      "pregame_favorite": "Buffalo Bills",
+      "source": "Action Network DraftKings frozen pregame moneyline",
+      "source_url": "https://api.actionnetwork.com/web/v1/scoreboard/nfl?bookIds=68,75,123,79,71&date=20261109&periods=event"
     }
   },
-  "updated_at": "2026-11-08T16:24:29.147142+00:00"
+  "updated_at": "2026-11-09T05:44:46.512260+00:00"
 }
