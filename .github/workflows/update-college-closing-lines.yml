@@ -4,10 +4,8 @@ name: Update College Pregame Odds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * 6'
-    - cron: '*/5 * * * 5'
-    - cron: '*/10 0-6 * * 0'
-    - cron: '*/15 * * * 4'
+    - cron: '*/10 * * * 5,6'
+    - cron: '*/15 0-8 * * 0'
 
 permissions:
   contents: write
@@ -21,384 +19,212 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Capture verified college pregame moneylines
+      - name: Capture ESPN verified college pregame moneylines
         shell: bash
         run: |
           python - <<'PY'
-          import json, re, urllib.request
+          import json
+          import time
+          import urllib.error
+          import urllib.request
           from datetime import datetime, timedelta, timezone
           from pathlib import Path
           from zoneinfo import ZoneInfo
 
-          OUT = Path('college-closing-lines.json')
-          ESPN = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'
-          ACTION = 'https://api.actionnetwork.com/web/v1/scoreboard/ncaaf'
-          BOOKS = {68:'DraftKings',75:'BetMGM',123:'Caesars',79:'bet365',71:'BetRivers'}
-          ET = ZoneInfo('America/New_York')
+          FILE = Path('college-closing-lines.json')
+          REPORT = Path('college-odds-diagnostics.json')
+          SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard'
+          CORE = 'https://sports.core.api.espn.com/v2/sports/football/leagues/college-football'
+          EASTERN = ZoneInfo('America/New_York')
+          NOW = datetime.now(timezone.utc)
+          failures = []
+          missing = []
+          checked = 0
+          added = 0
+          api_ok = 0
 
-          def get(url):
-              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0','Accept':'application/json'})
-              with urllib.request.urlopen(req,timeout=30) as r:
-                  return json.load(r)
+          def get_json(url):
+              headers = {
+                  'User-Agent': 'Mozilla/5.0 (compatible; college-odds-capture/1.0)',
+                  'Accept': 'application/json',
+                  'Origin': 'https://www.espn.com',
+                  'Referer': 'https://www.espn.com/',
+              }
+              for attempt in range(3):
+                  try:
+                      request = urllib.request.Request(url, headers=headers)
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          return json.load(response)
+                  except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError) as error:
+                      if attempt == 2 or (isinstance(error, urllib.error.HTTPError) and error.code not in (429, 500, 502, 503, 504)):
+                          raise
+                      time.sleep(attempt + 1)
 
-          ALIASES = {
-              'appalachian state':'app state',
-              'appalachian st':'app state',
-              'san jose state':'san jose state',
-              'san jose st':'san jose state',
-              'southern methodist':'smu',
-              'mississippi':'ole miss',
-              'mississippi rebels':'ole miss',
-              'miami fl':'miami',
-              'miami florida':'miami',
-              'california':'cal',
-              'texas christian':'tcu',
-              'central florida':'ucf',
-              'louisiana state':'lsu',
-              'north carolina state':'nc state',
-              'north carolina st':'nc state',
-              'pittsburgh':'pitt',
-          }
-
-          MASCOTS = (
-              ' fighting irish',' golden bears',
-              ' wolfpack',' mountaineers',
-              ' spartans',' eagles',' hurricanes',
-              ' tar heels',' badgers',' hawkeyes',
-              ' rebels',' tigers',' midshipmen',
-              ' mustangs',' orange',' horned frogs',
-              ' wildcats',' bruins',' crimson tide'
-          )
-
-          def norm(name):
-              name=' '.join(re.sub(
-                  r'[^a-z0-9]+',' ',
-                  str(name or '').lower().replace('&','and')
-              ).split())
-              for suffix in MASCOTS:
-                  if name.endswith(suffix):
-                      name=name[:-len(suffix)]
-              name=re.sub(r'\b(st)\b','state',name)
-              return ALIASES.get(name,name)
-
-          def variants(name):
-              n=norm(name)
-              return {n,ALIASES.get(n,n)}
-
-          def unique_match(action,away_name,home_name):
-              matches=[]
-              for ag in action:
-                  teams={
-                      str(t.get('id')):t
-                      for t in ag.get('teams',[])
-                  }
-                  an=teams.get(
-                      str(ag.get('away_team_id')),{ }
-                  ).get('full_name','')
-                  hn=teams.get(
-                      str(ag.get('home_team_id')),{ }
-                  ).get('full_name','')
-                  if (an and hn
-                      and norm(an) in variants(away_name)
-                      and norm(hn) in variants(home_name)):
-                      matches.append(ag)
-              return matches
-
-          def ml(value):
+          def moneyline(value):
+              if isinstance(value, dict):
+                  value = value.get('american', value.get('value', value.get('displayValue')))
+              if isinstance(value, str):
+                  value = value.strip().replace(',', '').upper()
+                  if value in ('EVEN', 'EVENS', 'EV'): return 100
+                  value = value.replace('+', '')
               try:
-                  n=int(value)
-                  return n if n!=0 else None
-              except (ValueError,TypeError):
+                  n = int(value)
+                  return n if 100 <= abs(n) <= 100000 else None
+              except (TypeError, ValueError):
                   return None
 
-          def implied(n):
-              return -n/(-n+100) if n<0 else 100/(n+100)
+          def implied(american):
+              return (-american / (100 - american)) if american < 0 else (100 / (100 + american))
 
-          def date_of(event):
-              return datetime.fromisoformat(
-                  event['date'].replace('Z','+00:00')
-              ).astimezone(ET).strftime('%Y-%m-%d')
-
-          def competitors(event):
-              c=event['competitions'][0]['competitors']
-              return (
-                  next(x for x in c if x['homeAway']=='away'),
-                  next(x for x in c if x['homeAway']=='home')
-              )
-
-          data={'games':{}}
-          if OUT.exists():
-              try:
-                  existing=json.loads(OUT.read_text())
-                  if isinstance(existing.get('games'),dict):
-                      data=existing
-              except (ValueError,TypeError):
-                  raise RuntimeError(
-                      'Existing college JSON invalid; refusing to overwrite'
-                  )
-
-          games=data['games']
-          added=0
-          diagnostics=[]
-          today=datetime.now(ET).date()
-
-          for day in (
-              today-timedelta(days=1),
-              today,
-              today+timedelta(days=2)
-          ):
-              ds=day.strftime('%Y%m%d')
-              try:
-                  scoreboard=get(
-                      f'{ESPN}?dates={ds}&groups=80&limit=500'
-                  )
-              except Exception as e:
-                  print('ESPN failed',ds,e)
-                  continue
-
-              try:
-                  url=(
-                      f'{ACTION}?bookIds='
-                      f'{",".join(map(str,BOOKS))}'
-                      f'&date={ds}&periods=event'
-                  )
-                  action=get(url).get('games',[])
-              except Exception as e:
-                  print('Action Network failed',ds,e)
-                  action=[]
-
-              print(
-                  ds,'ESPN',
-                  len(scoreboard.get('events',[])),
-                  'Action',len(action)
-              )
-
-              for event in scoreboard.get('events',[]):
-                  eid=str(event.get('id',''))
-                  if eid in games:
-                      continue
-
+          def ranked(event):
+              competition = (event.get('competitions') or [{}])[0]
+              for side in competition.get('competitors', []):
+                  rank = (side.get('curatedRank') or {}).get('current', 99)
                   try:
-                      away,home=competitors(event)
-                  except (KeyError,IndexError,StopIteration):
+                      if 1 <= int(rank) <= 25: return True
+                  except (ValueError, TypeError):
+                      pass
+              return False
+
+          def team_names(competition):
+              sides = {x.get('homeAway'): (x.get('team') or {}).get('displayName')
+                       for x in competition.get('competitors', [])}
+              if not sides.get('away') or not sides.get('home'):
+                  raise ValueError('Missing home or away team')
+              return sides['away'], sides['home']
+
+          def side_moneyline(row, side, snapshot):
+              block = row.get(side + 'TeamOdds') or {}
+              if snapshot == 'top':
+                  return moneyline(block.get('moneyLine'))
+              snap = block.get(snapshot) or {}
+              return moneyline(snap.get('moneyLine'))
+
+          def find_line(items, kickoff):
+              # Closing lines after kickoff are explicitly labeled by ESPN.
+              # Undated current lines are accepted only before kickoff.
+              prior_to_kickoff = NOW < kickoff
+              choices = []
+              for row in items:
+                  if not isinstance(row, dict): continue
+                  provider = row.get('provider') or {}
+                  provider_name = str(provider.get('name') or 'Unknown provider')
+                  try:
+                      priority = int(provider.get('priority', 999))
+                  except (ValueError, TypeError):
+                      priority = 999
+                  snapshots = ['current', 'top'] if prior_to_kickoff else ['close']
+                  for order, snap in enumerate(snapshots):
+                      away = side_moneyline(row, 'away', snap)
+                      home = side_moneyline(row, 'home', snap)
+                      if away is None or home is None: continue
+                      choices.append((order, priority, provider_name, away, home, snap))
+              if not choices: return None
+              choices.sort()
+              _, _, provider, away, home, snapshot = choices[0]
+              return away, home, f'ESPN Core {provider} {snapshot} moneyline', snapshot
+
+          if not FILE.exists():
+              raise RuntimeError('Historical college odds JSON missing: refusing to create an empty replacement')
+          original = json.loads(FILE.read_text())
+          if not isinstance(original, dict) or not isinstance(original.get('games'), dict):
+              raise RuntimeError('Historical college odds JSON malformed: refusing to overwrite')
+          games = original['games']
+          existing = len(games)
+          today = NOW.astimezone(EASTERN).date()
+
+          for date in (today - timedelta(days=1), today, today + timedelta(days=1)):
+              day = date.strftime('%Y%m%d')
+              try:
+                  scoreboard = get_json(f'{SCOREBOARD}?dates={day}&groups=80&limit=500')
+              except Exception as error:
+                  failures.append(f'SCOREBOARD {day}: {error}')
+                  print('ERROR_SCOREBOARD', day, str(error))
+                  continue
+              events = scoreboard.get('events') or []
+              selected = [event for event in events if ranked(event)]
+              print('DAY', day, 'scoreboard_games', len(events), 'ranked_games', len(selected))
+              for event in selected:
+                  event_id = str(event.get('id') or '')
+                  if not event_id or event_id in games: continue
+                  competition = (event.get('competitions') or [{}])[0]
+                  competition_id = str(competition.get('id') or event_id)
+                  try:
+                      away_name, home_name = team_names(competition)
+                      kickoff = datetime.fromisoformat(event['date'].replace('Z', '+00:00'))
+                  except (ValueError, TypeError, KeyError) as error:
+                      missing.append({'event_id': event_id, 'reason': f'Invalid ESPN game metadata: {error}'})
                       continue
-
-                  away_name=away.get(
-                      'team',{}
-                  ).get('displayName','')
-                  home_name=home.get(
-                      'team',{}
-                  ).get('displayName','')
-
-                  if not away_name or not home_name:
+                  checked += 1
+                  url = f'{CORE}/events/{event_id}/competitions/{competition_id}/odds?lang=en&region=us&limit=100'
+                  try:
+                      response = get_json(url)
+                      api_ok += 1
+                      items = response.get('items') or []
+                      line = find_line(items, kickoff)
+                  except Exception as error:
+                      failures.append(f'ODDS {event_id}: {error}')
+                      line = None
+                  if not line:
+                      missing.append({'event_id': event_id, 'away': away_name,
+                                      'home': home_name, 'reason': 'No verifiable pregame moneyline pair'})
                       continue
-
-                  candidates=unique_match(
-                      action,away_name,home_name
-                  )
-
-                  if len(candidates)!=1:
-                      reason=(
-                          'NO_MATCH' if not candidates
-                          else 'AMBIGUOUS_MATCH'
-                      )
-                      diagnostics.append({
-                          'id':eid,
-                          'away':away_name,
-                          'home':home_name,
-                          'reason':reason,
-                          'candidates':len(candidates)
-                      })
-                      print(
-                          reason,eid,away_name,
-                          'at',home_name,
-                          'candidates',len(candidates)
-                      )
-                      continue
-
-                  ag=candidates[0]
-                  rows=[]
-
-                  for row in ag.get('odds',[]):
-                      if row.get('type')!='game':
-                          continue
-
-                      bid=row.get('book_id')
-                      if bid not in BOOKS:
-                          continue
-
-                      st=row.get('line_status') or {}
-                      if (st.get('ml_home')==2
-                          or st.get('ml_away')==2):
-                          continue
-
-                      am=ml(row.get('ml_away'))
-                      hm=ml(row.get('ml_home'))
-
-                      if am is not None and hm is not None:
-                          rows.append((
-                              list(BOOKS).index(bid),
-                              bid,am,hm,row.get('inserted')
-                          ))
-
-                  if not rows:
-                      diagnostics.append({
-                          'id':eid,
-                          'away':away_name,
-                          'home':home_name,
-                          'reason':'NO_PREGAME_MONEYLINE'
-                      })
-                      print('NO VERIFIED PREGAME LINE',eid)
-                      continue
-
-                  kickoff=datetime.fromisoformat(
-                      event['date'].replace('Z','+00:00')
-                  )
-
-                  eligible=[]
-                  for item in rows:
-                      ts=item[4]
-                      if ts:
-                          try:
-                              stamped=datetime.fromisoformat(
-                                  str(ts).replace('Z','+00:00')
-                              )
-                              if stamped.tzinfo is None:
-                                  continue
-                              if stamped<=kickoff:
-                                  eligible.append(item)
-                          except ValueError:
-                              pass
-                      elif datetime.now(timezone.utc)<kickoff:
-                          eligible.append(item)
-
-                  if not eligible:
-                      diagnostics.append({
-                          'id':eid,
-                          'away':away_name,
-                          'home':home_name,
-                          'reason':'NO_PREKICKOFF_TIMESTAMP'
-                      })
-                      print(
-                          'REJECT POST-KICKOFF OR UNTIMED LINE',
-                          eid
-                      )
-                      continue
-
-                  eligible.sort(key=lambda r:r[0])
-                  _,bid,am,hm,ts=eligible[0]
-
-                  if ts:
-                      try:
-                          stamped=datetime.fromisoformat(
-                              str(ts).replace('Z','+00:00')
-                          )
-                          if stamped>kickoff:
-                              print(
-                                  'REJECT POST-KICKOFF LINE',
-                                  eid,ts
-                              )
-                              continue
-                      except ValueError:
-                          print(
-                              'REJECT UNPARSEABLE TIMESTAMP',
-                              eid,ts
-                          )
-                          continue
-
-                  ap,hp=implied(am),implied(hm)
-                  total=ap+hp
-                  if total<=0:
-                      continue
-
-                  ap,hp=ap/total,hp/total
-
-                  games[eid]={
-                      'event_id':eid,
-                      'date':date_of(event),
-                      'away':away_name,
-                      'home':home_name,
-                      'away_ml':am,
-                      'home_ml':hm,
-                      'away_fair_probability':round(ap,6),
-                      'home_fair_probability':round(hp,6),
-                      'pregame_favorite':(
-                          away_name if ap>hp else home_name
-                      ),
-                      'favorite_probability':round(
-                          max(ap,hp),6
-                      ),
-                      'source':(
-                          f'Action Network '
-                          f'{BOOKS[bid]} pregame moneyline'
-                      ),
-                      'source_url':url,
-                      'odds_timestamp':ts,
-                      'captured_at':datetime.now(
-                          timezone.utc
-                      ).isoformat()
+                  away_ml, home_ml, source, snapshot = line
+                  a, h = implied(away_ml), implied(home_ml)
+                  fair_away, fair_home = a/(a+h), h/(a+h)
+                  capture_time = datetime.now(timezone.utc).isoformat()
+                  games[event_id] = {
+                      'event_id': event_id,
+                      'date': kickoff.astimezone(EASTERN).date().isoformat(),
+                      'away': away_name, 'home': home_name,
+                      'away_ml': away_ml, 'home_ml': home_ml,
+                      'away_fair_probability': round(fair_away, 6),
+                      'home_fair_probability': round(fair_home, 6),
+                      'pregame_favorite': away_name if fair_away > fair_home else home_name,
+                      'favorite_probability': round(max(fair_away, fair_home), 6),
+                      'source': source, 'source_url': url,
+                      'odds_timestamp': capture_time if snapshot != 'close' else None,
+                      'captured_at': capture_time
                   }
-
-                  added+=1
-                  print(
-                      'SAVED',eid,away_name,am,
-                      'at',home_name,hm
-                  )
+                  added += 1
+                  print('SAVED', event_id, away_name, away_ml, home_name, home_ml, source)
 
           if added:
-              data['updated_at']=datetime.now(
-                  timezone.utc
-              ).isoformat()
-              OUT.write_text(
-                  json.dumps(
-                      data,indent=2,sort_keys=True
-                  )+'\n'
-              )
-
-          print(
-              'New lines:',added,
-              'Total lines:',len(games)
-          )
-
-          from collections import Counter
-          summary=Counter(
-              row['reason'] for row in diagnostics
-          )
-          print('Missing reasons:',dict(summary))
-
-          Path('college-odds-diagnostics.json').write_text(
-              json.dumps({
-                  'checked_at':datetime.now(
-                      timezone.utc
-                  ).isoformat(),
-                  'existing_records':len(games),
-                  'new_records':added,
-                  'missing_reasons':dict(summary),
-                  'missing_games':diagnostics
-              },indent=2)+'\n'
-          )
+              original['updated_at'] = datetime.now(timezone.utc).isoformat()
+              FILE.write_text(json.dumps(original, indent=2, sort_keys=True) + '\n')
+          REPORT.write_text(json.dumps({
+              'checked_at': NOW.isoformat(), 'old_records': existing,
+              'new_records': added, 'total_records': len(games),
+              'eligible_missing': missing, 'source_errors': failures,
+              'odds_requests': checked, 'successful_odds_requests': api_ok
+          }, indent=2) + '\n')
+          print('SUMMARY', 'historical', existing, 'added', added,
+                'total', len(games), 'candidates', checked, 'odds_api_ok', api_ok,
+                'missing', len(missing), 'errors', len(failures))
+          if missing:
+              print(f'::warning::{len(missing)} college games still lack verified pregame odds; see diagnostic artifact')
+          if checked and not api_ok:
+              raise RuntimeError('All ESPN Core odds requests failed; see diagnostic artifact')
           PY
 
-      - name: Commit verified lines
+      - name: Commit new college odds only
         shell: bash
         run: |
           if [ -z "$(git status --porcelain -- college-closing-lines.json)" ]; then
-            echo 'No new verified lines'
+            echo 'No new verified odds to commit'
             exit 0
           fi
-
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add college-closing-lines.json
-          git commit -m 'Capture verified college pregame moneylines'
+          git commit -m 'Capture verified ESPN college pregame moneylines'
           git push
 
-      - name: Upload missing-odds diagnostic report
+      - name: Upload college odds diagnostic report
         if: always()
         uses: actions/upload-artifact@v4
         with:
