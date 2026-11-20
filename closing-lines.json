@@ -816,7 +816,23 @@
       "pregame_favorite": "Baltimore Ravens",
       "source": "ESPN Core DraftKings current moneyline",
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873065/competitions/401873065/odds?lang=en&region=us&limit=100"
+    },
+    "401873066": {
+      "away": "Indianapolis Colts",
+      "away_fair_probability": 0.152262,
+      "away_ml": 531,
+      "captured_at": "2026-11-20T02:48:08.295683+00:00",
+      "date": "2026-11-19",
+      "event_id": "401873066",
+      "favorite_probability": 0.847738,
+      "home": "Houston Texans",
+      "home_fair_probability": 0.847738,
+      "home_ml": -750,
+      "odds_timestamp": null,
+      "pregame_favorite": "Houston Texans",
+      "source": "ESPN Core DraftKings close moneyline",
+      "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873066/competitions/401873066/odds?lang=en&region=us&limit=100"
     }
   },
-  "updated_at": "2026-11-15T16:27:23.235988+00:00"
+  "updated_at": "2026-11-20T02:48:08.437229+00:00"
 }
