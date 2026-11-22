@@ -869,16 +869,28 @@
       "away": "Jacksonville Jaguars",
       "away_fair_probability": 0.697773,
       "away_ml": -265,
-      "captured_at": "2026-11-22T19:08:01.768688+00:00",
+      "captured_at": "2026-11-22T19:17:38.986717+00:00",
       "date": "2026-11-22",
       "event_id": "401873069",
       "favorite_probability": 0.697773,
       "home": "New York Giants",
       "home_fair_probability": 0.302227,
       "home_ml": 218,
-      "odds_timestamp": "2026-11-22T19:08:01.768688+00:00",
+      "kickoff_utc": "2026-11-22T21:25:00+00:00",
+      "line_status": "latest_verified_pregame",
+      "odds_timestamp": "2026-11-22T19:17:38.986717+00:00",
       "pregame_favorite": "Jacksonville Jaguars",
-      "source": "ESPN Core Draft Kings current moneyline",
+      "snapshots": {
+        "latest_pregame": {
+          "away_ml": -265,
+          "captured_at": "2026-11-22T19:17:38.986717+00:00",
+          "home_ml": 218,
+          "minutes_before_kickoff": 127.35,
+          "source": "ESPN Core Draft Kings current",
+          "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873069/competitions/401873069/odds?lang=en&region=us&limit=100"
+        }
+      },
+      "source": "ESPN Core Draft Kings current pregame snapshot (not confirmed close)",
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873069/competitions/401873069/odds?lang=en&region=us&limit=100"
     },
     "401873070": {
@@ -949,32 +961,56 @@
       "away": "New York Jets",
       "away_fair_probability": 0.384509,
       "away_ml": 150,
-      "captured_at": "2026-11-22T19:08:01.390483+00:00",
+      "captured_at": "2026-11-22T19:17:38.650165+00:00",
       "date": "2026-11-22",
       "event_id": "401873074",
       "favorite_probability": 0.615491,
       "home": "Los Angeles Chargers",
       "home_fair_probability": 0.615491,
       "home_ml": -178,
-      "odds_timestamp": "2026-11-22T19:08:01.390483+00:00",
+      "kickoff_utc": "2026-11-22T21:05:00+00:00",
+      "line_status": "latest_verified_pregame",
+      "odds_timestamp": "2026-11-22T19:17:38.650165+00:00",
       "pregame_favorite": "Los Angeles Chargers",
-      "source": "ESPN Core Draft Kings current moneyline",
+      "snapshots": {
+        "latest_pregame": {
+          "away_ml": 150,
+          "captured_at": "2026-11-22T19:17:38.650165+00:00",
+          "home_ml": -178,
+          "minutes_before_kickoff": 107.36,
+          "source": "ESPN Core Draft Kings current",
+          "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873074/competitions/401873074/odds?lang=en&region=us&limit=100"
+        }
+      },
+      "source": "ESPN Core Draft Kings current pregame snapshot (not confirmed close)",
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873074/competitions/401873074/odds?lang=en&region=us&limit=100"
     },
     "401873075": {
       "away": "Las Vegas Raiders",
       "away_fair_probability": 0.176729,
       "away_ml": 444,
-      "captured_at": "2026-11-22T19:08:01.560743+00:00",
+      "captured_at": "2026-11-22T19:17:38.838150+00:00",
       "date": "2026-11-22",
       "event_id": "401873075",
       "favorite_probability": 0.823271,
       "home": "Denver Broncos",
       "home_fair_probability": 0.823271,
       "home_ml": -596,
-      "odds_timestamp": "2026-11-22T19:08:01.560743+00:00",
+      "kickoff_utc": "2026-11-22T21:25:00+00:00",
+      "line_status": "latest_verified_pregame",
+      "odds_timestamp": "2026-11-22T19:17:38.838150+00:00",
       "pregame_favorite": "Denver Broncos",
-      "source": "ESPN Core Draft Kings current moneyline",
+      "snapshots": {
+        "latest_pregame": {
+          "away_ml": 444,
+          "captured_at": "2026-11-22T19:17:38.838150+00:00",
+          "home_ml": -596,
+          "minutes_before_kickoff": 127.35,
+          "source": "ESPN Core Draft Kings current",
+          "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873075/competitions/401873075/odds?lang=en&region=us&limit=100"
+        }
+      },
+      "source": "ESPN Core Draft Kings current pregame snapshot (not confirmed close)",
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873075/competitions/401873075/odds?lang=en&region=us&limit=100"
     },
     "401873076": {
@@ -997,34 +1033,58 @@
       "away": "Minnesota Vikings",
       "away_fair_probability": 0.387379,
       "away_ml": 148,
-      "captured_at": "2026-11-22T19:08:01.942740+00:00",
+      "captured_at": "2026-11-22T19:17:39.136851+00:00",
       "date": "2026-11-22",
       "event_id": "401873077",
       "favorite_probability": 0.612621,
       "home": "San Francisco 49ers",
       "home_fair_probability": 0.612621,
       "home_ml": -176,
-      "odds_timestamp": "2026-11-22T19:08:01.942740+00:00",
+      "kickoff_utc": "2026-11-23T01:20:00+00:00",
+      "line_status": "latest_verified_pregame",
+      "odds_timestamp": "2026-11-22T19:17:39.136851+00:00",
       "pregame_favorite": "San Francisco 49ers",
-      "source": "ESPN Core Draft Kings current moneyline",
+      "snapshots": {
+        "latest_pregame": {
+          "away_ml": 148,
+          "captured_at": "2026-11-22T19:17:39.136851+00:00",
+          "home_ml": -176,
+          "minutes_before_kickoff": 362.35,
+          "source": "ESPN Core Draft Kings current",
+          "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873077/competitions/401873077/odds?lang=en&region=us&limit=100"
+        }
+      },
+      "source": "ESPN Core Draft Kings current pregame snapshot (not confirmed close)",
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873077/competitions/401873077/odds?lang=en&region=us&limit=100"
     },
     "401873078": {
       "away": "Cincinnati Bengals",
       "away_fair_probability": 0.718222,
       "away_ml": -296,
-      "captured_at": "2026-11-22T19:08:02.157842+00:00",
+      "captured_at": "2026-11-22T19:17:39.284200+00:00",
       "date": "2026-11-23",
       "event_id": "401873078",
       "favorite_probability": 0.718222,
       "home": "Washington Commanders",
       "home_fair_probability": 0.281778,
       "home_ml": 241,
-      "odds_timestamp": "2026-11-22T19:08:02.157842+00:00",
+      "kickoff_utc": "2026-11-24T01:15:00+00:00",
+      "line_status": "latest_verified_pregame",
+      "odds_timestamp": "2026-11-22T19:17:39.284200+00:00",
       "pregame_favorite": "Cincinnati Bengals",
-      "source": "ESPN Core Draft Kings current moneyline",
+      "snapshots": {
+        "latest_pregame": {
+          "away_ml": -296,
+          "captured_at": "2026-11-22T19:17:39.284200+00:00",
+          "home_ml": 241,
+          "minutes_before_kickoff": 1797.35,
+          "source": "ESPN Core Draft Kings current",
+          "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873078/competitions/401873078/odds?lang=en&region=us&limit=100"
+        }
+      },
+      "source": "ESPN Core Draft Kings current pregame snapshot (not confirmed close)",
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873078/competitions/401873078/odds?lang=en&region=us&limit=100"
     }
   },
-  "updated_at": "2026-11-22T19:08:02.157880+00:00"
+  "updated_at": "2026-11-22T19:17:37.881613+00:00"
 }
