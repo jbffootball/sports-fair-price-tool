@@ -1033,7 +1033,7 @@
       "away": "Minnesota Vikings",
       "away_fair_probability": 0.361352,
       "away_ml": 166,
-      "captured_at": "2026-11-23T00:18:06.655764+00:00",
+      "captured_at": "2026-11-23T00:21:10.147688+00:00",
       "date": "2026-11-22",
       "event_id": "401873077",
       "favorite_probability": 0.638648,
@@ -1042,22 +1042,22 @@
       "home_ml": -198,
       "kickoff_utc": "2026-11-23T01:20:00+00:00",
       "line_status": "latest_verified_pregame",
-      "odds_timestamp": "2026-11-23T00:18:06.655764+00:00",
+      "odds_timestamp": "2026-11-23T00:21:10.147688+00:00",
       "pregame_favorite": "San Francisco 49ers",
       "snapshots": {
         "latest_pregame": {
           "away_ml": 166,
-          "captured_at": "2026-11-23T00:18:06.655764+00:00",
+          "captured_at": "2026-11-23T00:21:10.147688+00:00",
           "home_ml": -198,
-          "minutes_before_kickoff": 61.89,
+          "minutes_before_kickoff": 58.83,
           "source": "ESPN Core DraftKings current",
           "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873077/competitions/401873077/odds?lang=en&region=us&limit=100"
         },
         "t60": {
           "away_ml": 166,
-          "captured_at": "2026-11-23T00:18:06.655764+00:00",
+          "captured_at": "2026-11-23T00:21:10.147688+00:00",
           "home_ml": -198,
-          "minutes_before_kickoff": 61.89,
+          "minutes_before_kickoff": 58.83,
           "source": "ESPN Core DraftKings current",
           "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873077/competitions/401873077/odds?lang=en&region=us&limit=100"
         }
@@ -1514,5 +1514,5 @@
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873093/competitions/401873093/odds?lang=en&region=us&limit=100"
     }
   },
-  "updated_at": "2026-11-23T00:18:05.971862+00:00"
+  "updated_at": "2026-11-23T00:21:09.419984+00:00"
 }
