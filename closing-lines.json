@@ -1319,25 +1319,25 @@
     },
     "401873087": {
       "away": "New Orleans Saints",
-      "away_fair_probability": 0.176091,
-      "away_ml": 446,
-      "captured_at": "2026-11-23T19:44:22.213638+00:00",
+      "away_fair_probability": 0.187751,
+      "away_ml": 412,
+      "captured_at": "2026-11-24T05:46:05.157395+00:00",
       "date": "2026-11-29",
       "event_id": "401873087",
-      "favorite_probability": 0.823909,
+      "favorite_probability": 0.812249,
       "home": "Cincinnati Bengals",
-      "home_fair_probability": 0.823909,
-      "home_ml": -599,
+      "home_fair_probability": 0.812249,
+      "home_ml": -545,
       "kickoff_utc": "2026-11-29T18:00:00+00:00",
       "line_status": "latest_verified_pregame",
-      "odds_timestamp": "2026-11-23T19:44:22.213638+00:00",
+      "odds_timestamp": "2026-11-24T05:46:05.157395+00:00",
       "pregame_favorite": "Cincinnati Bengals",
       "snapshots": {
         "latest_pregame": {
-          "away_ml": 446,
-          "captured_at": "2026-11-23T19:44:22.213638+00:00",
-          "home_ml": -599,
-          "minutes_before_kickoff": 8535.63,
+          "away_ml": 412,
+          "captured_at": "2026-11-24T05:46:05.157395+00:00",
+          "home_ml": -545,
+          "minutes_before_kickoff": 7933.91,
           "source": "ESPN Core DraftKings current",
           "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873087/competitions/401873087/odds?lang=en&region=us&limit=100"
         }
@@ -1459,25 +1459,25 @@
     },
     "401873092": {
       "away": "Washington Commanders",
-      "away_fair_probability": 0.743567,
-      "away_ml": -341,
-      "captured_at": "2026-11-23T19:44:22.679236+00:00",
+      "away_fair_probability": 0.768857,
+      "away_ml": -399,
+      "captured_at": "2026-11-24T05:46:05.360754+00:00",
       "date": "2026-11-29",
       "event_id": "401873092",
-      "favorite_probability": 0.743567,
+      "favorite_probability": 0.768857,
       "home": "Arizona Cardinals",
-      "home_fair_probability": 0.256433,
-      "home_ml": 275,
+      "home_fair_probability": 0.231143,
+      "home_ml": 316,
       "kickoff_utc": "2026-11-29T21:25:00+00:00",
       "line_status": "latest_verified_pregame",
-      "odds_timestamp": "2026-11-23T19:44:22.679236+00:00",
+      "odds_timestamp": "2026-11-24T05:46:05.360754+00:00",
       "pregame_favorite": "Washington Commanders",
       "snapshots": {
         "latest_pregame": {
-          "away_ml": -341,
-          "captured_at": "2026-11-23T19:44:22.679236+00:00",
-          "home_ml": 275,
-          "minutes_before_kickoff": 8740.62,
+          "away_ml": -399,
+          "captured_at": "2026-11-24T05:46:05.360754+00:00",
+          "home_ml": 316,
+          "minutes_before_kickoff": 8138.91,
           "source": "ESPN Core DraftKings current",
           "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873092/competitions/401873092/odds?lang=en&region=us&limit=100"
         }
@@ -1542,5 +1542,5 @@
       "source_url": "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401873094/competitions/401873094/odds?lang=en&region=us&limit=100"
     }
   },
-  "updated_at": "2026-11-24T04:27:49.436083+00:00"
+  "updated_at": "2026-11-24T05:46:03.051745+00:00"
 }
